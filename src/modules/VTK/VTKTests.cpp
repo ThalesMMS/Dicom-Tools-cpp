@@ -1,27 +1,100 @@
 #include "VTKTestInterface.h"
-#include <iostream>
+
 #include <filesystem>
+#include <fstream>
+#include <iostream>
+
+#include "cli/CommandRegistry.h"
 
 #ifdef USE_VTK
-#include "vtkSmartPointer.h"
 #include "vtkDICOMImageReader.h"
-#include "vtkXMLImageDataWriter.h"
 #include "vtkImageData.h"
-#include "vtkNew.h"
-#include "vtkMarchingCubes.h"
-#include "vtkSTLWriter.h"
 #include "vtkImageReslice.h"
+#include "vtkImageShiftScale.h"
+#include "vtkImageThreshold.h"
+#include "vtkMarchingCubes.h"
+#include "vtkMedicalImageProperties.h"
+#include "vtkNew.h"
 #include "vtkPNGWriter.h"
-#include "vtkMatrix4x4.h"
+#include "vtkSmartPointer.h"
+#include "vtkSTLWriter.h"
+#include "vtkXMLImageDataWriter.h"
 
 namespace fs = std::filesystem;
 
-void VTKTests::TestImageExport(const std::string& filename) {
+namespace {
+std::string JoinPath(const std::string& base, const std::string& filename) {
+    return (fs::path(base) / filename).string();
+}
+
+std::string ResolveSeriesDirectory(const std::string& path) {
+    if (fs::is_directory(path)) {
+        return path;
+    }
+    return fs::path(path).parent_path().string();
+}
+}
+
+void VTKTests::RegisterCommands(CommandRegistry& registry) {
+    registry.Register({
+        "test-vtk",
+        "VTK",
+        "Run all VTK feature tests",
+        [](const CommandContext& ctx) {
+            TestImageExport(ctx.inputPath, ctx.outputDir);
+            TestIsosurfaceExtraction(ctx.inputPath, ctx.outputDir);
+            TestMPR(ctx.inputPath, ctx.outputDir);
+            TestThresholdMask(ctx.inputPath, ctx.outputDir);
+            TestMetadataExport(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "vtk:export",
+        "VTK",
+        "Convert to VTI volume",
+        [](const CommandContext& ctx) {
+            TestImageExport(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "vtk:isosurface",
+        "VTK",
+        "Generate STL mesh with marching cubes",
+        [](const CommandContext& ctx) {
+            TestIsosurfaceExtraction(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "vtk:mask",
+        "VTK",
+        "Binary threshold to create a segmentation mask",
+        [](const CommandContext& ctx) {
+            TestThresholdMask(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "vtk:metadata",
+        "VTK",
+        "Export patient/study metadata to text",
+        [](const CommandContext& ctx) {
+            TestMetadataExport(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+}
+
+void VTKTests::TestImageExport(const std::string& filename, const std::string& outputDir) {
     std::cout << "--- [VTK] Image Export ---" << std::endl;
 
     vtkNew<vtkDICOMImageReader> reader;
-    // If filename is a file, we might need to set Directory Name instead for full series
-    // But for single file test, we use SetFileName
     reader->SetFileName(filename.c_str());
     reader->Update();
 
@@ -29,68 +102,48 @@ void VTKTests::TestImageExport(const std::string& filename) {
     std::cout << "Dimensions: " << dims[0] << " x " << dims[1] << " x " << dims[2] << std::endl;
 
     vtkNew<vtkXMLImageDataWriter> writer;
-    writer->SetFileName("output/vtk_export.vti");
+    writer->SetFileName(JoinPath(outputDir, "vtk_export.vti").c_str());
     writer->SetInputData(reader->GetOutput());
     writer->Write();
-    std::cout << "Saved to 'output/vtk_export.vti'" << std::endl;
+    std::cout << "Saved to '" << writer->GetFileName() << "'" << std::endl;
 }
 
-void VTKTests::TestIsosurfaceExtraction(const std::string& filename) {
+void VTKTests::TestIsosurfaceExtraction(const std::string& filename, const std::string& outputDir) {
     std::cout << "--- [VTK] Isosurface Extraction (Marching Cubes) ---" << std::endl;
     
     vtkNew<vtkDICOMImageReader> reader;
-    
-    // Heuristic: if filename is a directory, use SetDirectoryName
-    if (fs::is_directory(filename)) {
-        reader->SetDirectoryName(filename.c_str());
-    } else {
-        // Try to read just the file, or the parent directory? 
-        // Usually isosurface needs a volume. Let's try reading the single file as a volume of 1 slice (will probably fail to generate nice mesh)
-        // Or assume the user passed one file of a series and we want the series.
-        fs::path p(filename);
-        reader->SetDirectoryName(p.parent_path().string().c_str());
-    }
+    reader->SetDirectoryName(ResolveSeriesDirectory(filename).c_str());
     reader->Update();
     
     vtkNew<vtkMarchingCubes> surface;
     surface->SetInputConnection(reader->GetOutputPort());
     surface->ComputeNormalsOn();
     surface->ComputeGradientsOn();
-    surface->SetValue(0, 500); // Arbitrary iso-value for bone/skin
+    surface->SetValue(0, 500);
 
     vtkNew<vtkSTLWriter> writer;
-    writer->SetFileName("output/vtk_isosurface.stl");
+    writer->SetFileName(JoinPath(outputDir, "vtk_isosurface.stl").c_str());
     writer->SetInputConnection(surface->GetOutputPort());
     writer->Write();
     
-    std::cout << "Saved to 'output/vtk_isosurface.stl'" << std::endl;
+    std::cout << "Saved to '" << writer->GetFileName() << "'" << std::endl;
 }
 
-#include "vtkImageShiftScale.h"
-
-void VTKTests::TestMPR(const std::string& filename) {
+void VTKTests::TestMPR(const std::string& filename, const std::string& outputDir) {
     std::cout << "--- [VTK] MPR (Single Slice Export) ---" << std::endl;
     
     vtkNew<vtkDICOMImageReader> reader;
-    if (fs::is_directory(filename)) {
-        reader->SetDirectoryName(filename.c_str());
-    } else {
-        fs::path p(filename);
-        reader->SetDirectoryName(p.parent_path().string().c_str());
-    }
+    reader->SetDirectoryName(ResolveSeriesDirectory(filename).c_str());
     reader->Update();
     
-    // Get center
     double* center = reader->GetOutput()->GetCenter();
     double* range = reader->GetOutput()->GetScalarRange();
     
     vtkNew<vtkImageReslice> reslice;
     reslice->SetInputConnection(reader->GetOutputPort());
     reslice->SetOutputDimensionality(2);
-    // Default is axial, let's just extract the center slice
     reslice->SetResliceAxesOrigin(center[0], center[1], center[2]);
     
-    // Cast to Unsigned Char (0-255) for PNG
     vtkNew<vtkImageShiftScale> shiftScale;
     shiftScale->SetInputConnection(reslice->GetOutputPort());
     shiftScale->SetShift(-range[0]);
@@ -98,15 +151,70 @@ void VTKTests::TestMPR(const std::string& filename) {
     shiftScale->SetOutputScalarTypeToUnsignedChar();
     
     vtkNew<vtkPNGWriter> writer;
-    writer->SetFileName("output/vtk_mpr_slice.png");
+    writer->SetFileName(JoinPath(outputDir, "vtk_mpr_slice.png").c_str());
     writer->SetInputConnection(shiftScale->GetOutputPort());
     writer->Write();
     
-    std::cout << "Saved to 'output/vtk_mpr_slice.png'" << std::endl;
+    std::cout << "Saved to '" << writer->GetFileName() << "'" << std::endl;
+}
+
+void VTKTests::TestThresholdMask(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [VTK] Threshold Mask ---" << std::endl;
+
+    vtkNew<vtkDICOMImageReader> reader;
+    reader->SetDirectoryName(ResolveSeriesDirectory(filename).c_str());
+    reader->Update();
+
+    vtkNew<vtkImageThreshold> threshold;
+    threshold->SetInputConnection(reader->GetOutputPort());
+    threshold->ThresholdBetween(300, 3000);
+    threshold->SetInValue(1);
+    threshold->SetOutValue(0);
+    threshold->SetOutputScalarTypeToUnsignedChar();
+
+    vtkNew<vtkXMLImageDataWriter> writer;
+    writer->SetFileName(JoinPath(outputDir, "vtk_threshold_mask.vti").c_str());
+    writer->SetInputConnection(threshold->GetOutputPort());
+    writer->Write();
+
+    std::cout << "Saved binary mask to '" << writer->GetFileName() << "'" << std::endl;
+}
+
+void VTKTests::TestMetadataExport(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [VTK] Metadata Export ---" << std::endl;
+
+    vtkNew<vtkDICOMImageReader> reader;
+    reader->SetDirectoryName(ResolveSeriesDirectory(filename).c_str());
+    reader->Update();
+
+    vtkMedicalImageProperties* props = reader->GetMedicalImageProperties();
+    if (!props) {
+        std::cerr << "No medical image properties available for metadata export." << std::endl;
+        return;
+    }
+    std::string outFile = JoinPath(outputDir, "vtk_metadata.txt");
+    std::ofstream out(outFile, std::ios::out | std::ios::trunc);
+    if (!out.is_open()) {
+        std::cerr << "Failed to open metadata output: " << outFile << std::endl;
+        return;
+    }
+
+    out << "PatientName: " << props->GetPatientName() << "\n";
+    out << "PatientID: " << props->GetPatientID() << "\n";
+    out << "StudyInstanceUID: " << props->GetStudyID() << "\n";
+    out << "SeriesDescription: " << props->GetSeriesDescription() << "\n";
+    out << "Modality: " << props->GetModality() << "\n";
+    out << "InstitutionName: " << props->GetInstitutionName() << "\n";
+    out.close();
+
+    std::cout << "Wrote metadata summary to '" << outFile << "'" << std::endl;
 }
 
 #else
-void VTKTests::TestImageExport(const std::string&) { std::cout << "VTK not enabled." << std::endl; }
-void VTKTests::TestIsosurfaceExtraction(const std::string&) {}
-void VTKTests::TestMPR(const std::string&) {}
+void VTKTests::RegisterCommands(CommandRegistry&) {}
+void VTKTests::TestImageExport(const std::string&, const std::string&) { std::cout << "VTK not enabled." << std::endl; }
+void VTKTests::TestIsosurfaceExtraction(const std::string&, const std::string&) {}
+void VTKTests::TestMPR(const std::string&, const std::string&) {}
+void VTKTests::TestThresholdMask(const std::string&, const std::string&) {}
+void VTKTests::TestMetadataExport(const std::string&, const std::string&) {}
 #endif

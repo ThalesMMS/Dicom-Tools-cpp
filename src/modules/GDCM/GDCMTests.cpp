@@ -1,21 +1,100 @@
 #include "GDCMTestInterface.h"
+
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 
+#include "cli/CommandRegistry.h"
+
 #ifdef USE_GDCM
-#include "gdcmReader.h"
-#include "gdcmWriter.h"
+#include "gdcmAnonymizer.h"
+#include "gdcmAttribute.h"
+#include "gdcmDefs.h"
+#include "gdcmGlobal.h"
+#include "gdcmImageChangeTransferSyntax.h"
 #include "gdcmImageReader.h"
 #include "gdcmImageWriter.h"
-#include "gdcmGlobal.h"
-#include "gdcmDicts.h"
-#include "gdcmDefs.h"
-#include "gdcmAttribute.h"
+#include "gdcmReader.h"
 #include "gdcmStringFilter.h"
-#include "gdcmAnonymizer.h"
-#include "gdcmImageChangeTransferSyntax.h"
 #include "gdcmUIDs.h"
+#include "gdcmWriter.h"
+#include "gdcmPrinter.h"
 
-void GDCMTests::TestTagInspection(const std::string& filename) {
+namespace {
+std::string JoinPath(const std::string& base, const std::string& name) {
+    return (std::filesystem::path(base) / name).string();
+}
+}
+
+void GDCMTests::RegisterCommands(CommandRegistry& registry) {
+    registry.Register({
+        "test-gdcm",
+        "GDCM",
+        "Run all GDCM feature tests",
+        [](const CommandContext& ctx) {
+            TestTagInspection(ctx.inputPath, ctx.outputDir);
+            TestAnonymization(ctx.inputPath, ctx.outputDir);
+            TestDecompression(ctx.inputPath, ctx.outputDir);
+            TestUIDRewrite(ctx.inputPath, ctx.outputDir);
+            TestDatasetDump(ctx.inputPath, ctx.outputDir);
+            TestJPEG2000Transcode(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "gdcm:tags",
+        "GDCM",
+        "Inspect common tags and print patient identifiers",
+        [](const CommandContext& ctx) {
+            TestTagInspection(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "gdcm:anonymize",
+        "GDCM",
+        "Strip PHI fields and write anonymized copy",
+        [](const CommandContext& ctx) {
+            TestAnonymization(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "gdcm:transcode-j2k",
+        "GDCM",
+        "Transcode to JPEG2000 (lossless) to validate codec support",
+        [](const CommandContext& ctx) {
+            TestJPEG2000Transcode(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "gdcm:retag-uids",
+        "GDCM",
+        "Regenerate Study/Series/SOP Instance UIDs and save copy",
+        [](const CommandContext& ctx) {
+            TestUIDRewrite(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "gdcm:dump",
+        "GDCM",
+        "Write a verbose dataset dump to text for QA",
+        [](const CommandContext& ctx) {
+            TestDatasetDump(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+}
+
+void GDCMTests::TestTagInspection(const std::string& filename, const std::string& outputDir) {
+    (void)outputDir;
     std::cout << "--- [GDCM] Tag Inspection ---" << std::endl;
     gdcm::Reader reader;
     reader.SetFileName(filename.c_str());
@@ -28,7 +107,6 @@ void GDCMTests::TestTagInspection(const std::string& filename) {
     gdcm::StringFilter sf;
     sf.SetFile(reader.GetFile());
 
-    // Patient Name (0010,0010)
     gdcm::Tag tagPatientName(0x0010, 0x0010);
     if (ds.FindDataElement(tagPatientName)) {
         std::cout << "Patient Name: " << sf.ToString(tagPatientName) << std::endl;
@@ -36,14 +114,13 @@ void GDCMTests::TestTagInspection(const std::string& filename) {
         std::cout << "Patient Name: (Not Found)" << std::endl;
     }
 
-    // SOP Instance UID (0008,0018)
     gdcm::Tag tagSOPInstanceUID(0x0008, 0x0018);
     if (ds.FindDataElement(tagSOPInstanceUID)) {
         std::cout << "SOP Instance UID: " << sf.ToString(tagSOPInstanceUID) << std::endl;
     }
 }
 
-void GDCMTests::TestAnonymization(const std::string& filename) {
+void GDCMTests::TestAnonymization(const std::string& filename, const std::string& outputDir) {
     std::cout << "--- [GDCM] Anonymization ---" << std::endl;
     
     gdcm::Reader reader;
@@ -56,15 +133,12 @@ void GDCMTests::TestAnonymization(const std::string& filename) {
     gdcm::Anonymizer anon;
     anon.SetFile(reader.GetFile());
     
-    // Redact Patient Name
     anon.Empty(gdcm::Tag(0x0010, 0x0010));
-    // Redact Patient ID
     anon.Empty(gdcm::Tag(0x0010, 0x0020));
-    // Redact Birth Date
     anon.Empty(gdcm::Tag(0x0010, 0x0030));
 
     gdcm::Writer writer;
-    std::string outFilename = "output/gdcm_anon.dcm";
+    std::string outFilename = JoinPath(outputDir, "gdcm_anon.dcm");
     writer.SetFileName(outFilename.c_str());
     writer.SetFile(anon.GetFile());
     
@@ -75,7 +149,7 @@ void GDCMTests::TestAnonymization(const std::string& filename) {
     }
 }
 
-void GDCMTests::TestDecompression(const std::string& filename) {
+void GDCMTests::TestDecompression(const std::string& filename, const std::string& outputDir) {
     std::cout << "--- [GDCM] Decompression (Transcoding to Raw) ---" << std::endl;
     
     gdcm::ImageChangeTransferSyntax change;
@@ -95,7 +169,7 @@ void GDCMTests::TestDecompression(const std::string& filename) {
     }
 
     gdcm::ImageWriter writer;
-    std::string outFilename = "output/gdcm_raw.dcm";
+    std::string outFilename = JoinPath(outputDir, "gdcm_raw.dcm");
     writer.SetFileName(outFilename.c_str());
     writer.SetFile(reader.GetFile());
     writer.SetImage(change.GetOutput());
@@ -107,8 +181,101 @@ void GDCMTests::TestDecompression(const std::string& filename) {
     }
 }
 
+void GDCMTests::TestUIDRewrite(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [GDCM] UID Regeneration ---" << std::endl;
+    gdcm::Reader reader;
+    reader.SetFileName(filename.c_str());
+    if (!reader.Read()) {
+        std::cerr << "Could not read file for UID rewrite." << std::endl;
+        return;
+    }
+
+    gdcm::UIDGenerator uidGen;
+    std::string studyUID = uidGen.Generate();
+    std::string seriesUID = uidGen.Generate();
+    std::string instanceUID = uidGen.Generate();
+
+    auto setUID = [&](const gdcm::Tag& tag, const std::string& value) {
+        gdcm::DataElement elem(tag);
+        elem.SetByteValue(value.c_str(), static_cast<uint32_t>(value.size()));
+        reader.GetFile().GetDataSet().Replace(elem);
+    };
+
+    setUID(gdcm::Tag(0x0020, 0x000D), studyUID);  // StudyInstanceUID
+    setUID(gdcm::Tag(0x0020, 0x000E), seriesUID); // SeriesInstanceUID
+    setUID(gdcm::Tag(0x0008, 0x0018), instanceUID); // SOPInstanceUID
+
+    gdcm::Writer writer;
+    std::string outFilename = JoinPath(outputDir, "gdcm_reuid.dcm");
+    writer.SetFileName(outFilename.c_str());
+    writer.SetFile(reader.GetFile());
+    if (writer.Write()) {
+        std::cout << "Assigned new Study/Series/SOP UIDs and saved to: " << outFilename << std::endl;
+    } else {
+        std::cerr << "Failed to write UID-regenerated file." << std::endl;
+    }
+}
+
+void GDCMTests::TestDatasetDump(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [GDCM] Dataset Dump ---" << std::endl;
+    gdcm::Reader reader;
+    reader.SetFileName(filename.c_str());
+    if (!reader.Read()) {
+        std::cerr << "Could not read file for dataset dump." << std::endl;
+        return;
+    }
+
+    std::string outFilename = JoinPath(outputDir, "gdcm_dump.txt");
+    std::ofstream out(outFilename, std::ios::out | std::ios::trunc);
+    if (!out.is_open()) {
+        std::cerr << "Failed to open output for dataset dump: " << outFilename << std::endl;
+        return;
+    }
+
+    gdcm::Printer printer;
+    printer.SetFile(reader.GetFile());
+    printer.Print(out);
+    std::cout << "Wrote verbose dataset dump to: " << outFilename << std::endl;
+}
+
+void GDCMTests::TestJPEG2000Transcode(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [GDCM] JPEG2000 Lossless Transcode ---" << std::endl;
+
+    gdcm::ImageReader reader;
+    reader.SetFileName(filename.c_str());
+    if (!reader.Read()) {
+        std::cerr << "Could not read file for JPEG2000 transcode." << std::endl;
+        return;
+    }
+
+    gdcm::ImageChangeTransferSyntax change;
+    change.SetTransferSyntax(gdcm::TransferSyntax::JPEG2000Lossless);
+    change.SetInput(reader.GetImage());
+
+    if (!change.Change()) {
+        std::cerr << "Transfer syntax change to JPEG2000 failed (codec support may be missing)." << std::endl;
+        return;
+    }
+
+    gdcm::ImageWriter writer;
+    std::string outFilename = JoinPath(outputDir, "gdcm_jpeg2000.dcm");
+    writer.SetFileName(outFilename.c_str());
+    writer.SetFile(reader.GetFile());
+    writer.SetImage(change.GetOutput());
+
+    if (writer.Write()) {
+        std::cout << "Transcoded to JPEG2000 and saved to: " << outFilename << std::endl;
+    } else {
+        std::cerr << "Failed to write JPEG2000 transcoded file." << std::endl;
+    }
+}
+
 #else
-void GDCMTests::TestTagInspection(const std::string&) { std::cout << "GDCM not enabled." << std::endl; }
-void GDCMTests::TestAnonymization(const std::string&) {}
-void GDCMTests::TestDecompression(const std::string&) {}
+void GDCMTests::RegisterCommands(CommandRegistry&) {}
+void GDCMTests::TestTagInspection(const std::string&, const std::string&) { std::cout << "GDCM not enabled." << std::endl; }
+void GDCMTests::TestAnonymization(const std::string&, const std::string&) {}
+void GDCMTests::TestDecompression(const std::string&, const std::string&) {}
+void GDCMTests::TestUIDRewrite(const std::string&, const std::string&) {}
+void GDCMTests::TestDatasetDump(const std::string&, const std::string&) {}
+void GDCMTests::TestJPEG2000Transcode(const std::string&, const std::string&) {}
 #endif

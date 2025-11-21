@@ -51,11 +51,16 @@ endif()
 # --- Executable ---
 add_executable(DicomTools 
     src/main.cpp
+    src/cli/CLIParser.cpp
+    src/cli/CommandRegistry.cpp
+    src/utils/FileSystemUtils.cpp
     src/modules/GDCM/GDCMTests.cpp
     src/modules/DCMTK/DCMTKTests.cpp
     src/modules/ITK/ITKTests.cpp
     src/modules/VTK/VTKTests.cpp
 )
+
+target_include_directories(DicomTools PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 # --- Linking & Includes ---
 

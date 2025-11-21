@@ -1,9 +1,15 @@
 #pragma once
 #include <string>
 
+class CommandRegistry;
+
 namespace ITKTests {
-    void TestCannyEdgeDetection(const std::string& filename);
-    void TestGaussianSmoothing(const std::string& filename);
-    void TestBinaryThresholding(const std::string& filename);
-    void TestResampling(const std::string& filename);
+    void RegisterCommands(CommandRegistry& registry);
+
+    void TestCannyEdgeDetection(const std::string& filename, const std::string& outputDir);
+    void TestGaussianSmoothing(const std::string& filename, const std::string& outputDir);
+    void TestBinaryThresholding(const std::string& filename, const std::string& outputDir);
+    void TestResampling(const std::string& filename, const std::string& outputDir);
+    void TestAdaptiveHistogram(const std::string& filename, const std::string& outputDir);
+    void TestSliceExtraction(const std::string& filename, const std::string& outputDir);
 }

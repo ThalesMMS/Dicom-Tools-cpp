@@ -47,6 +47,9 @@ print("========================================")
 if run_test("test-gdcm", "GDCM Features"):
     check_file("gdcm_anon.dcm")
     check_file("gdcm_raw.dcm")
+    check_file("gdcm_reuid.dcm")
+    check_file("gdcm_dump.txt")
+    check_file("gdcm_jpeg2000.dcm")
 else:
     tests_passed = False
 
@@ -54,6 +57,8 @@ else:
 if run_test("test-dcmtk", "DCMTK Features"):
     check_file("dcmtk_modified.dcm")
     check_file("dcmtk_pixel_output.ppm")
+    check_file("dcmtk_jpeg_lossless.dcm")
+    check_file("dcmtk_raw_dump.bin")
 else:
     tests_passed = False
 
@@ -63,6 +68,8 @@ if run_test("test-itk", "ITK Features"):
     check_file("itk_gaussian.dcm")
     check_file("itk_threshold.dcm")
     check_file("itk_resampled.dcm")
+    check_file("itk_histogram_eq.dcm")
+    check_file("itk_slice.png")
 else:
     tests_passed = False
 
@@ -71,6 +78,8 @@ if run_test("test-vtk", "VTK Features"):
     check_file("vtk_export.vti")
     check_file("vtk_isosurface.stl")
     check_file("vtk_mpr_slice.png")
+    check_file("vtk_threshold_mask.vti")
+    check_file("vtk_metadata.txt")
 else:
     tests_passed = False
 

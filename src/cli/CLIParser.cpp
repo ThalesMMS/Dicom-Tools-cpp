@@ -1,0 +1,68 @@
+#include "CLIParser.h"
+
+#include <iostream>
+#include <string>
+#include <vector>
+
+namespace {
+bool IsFlag(const std::string& arg, const std::string& shortFlag, const std::string& longFlag) {
+    return arg == shortFlag || arg == longFlag;
+}
+}
+
+CLIOptions ParseCLIArgs(int argc, char* argv[], const CommandRegistry& registry) {
+    CLIOptions opts;
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg(argv[i]);
+        if (IsFlag(arg, "-h", "--help")) {
+            opts.help = true;
+        } else if (IsFlag(arg, "-l", "--list")) {
+            opts.list = true;
+        } else if (IsFlag(arg, "-v", "--verbose")) {
+            opts.verbose = true;
+        } else if (IsFlag(arg, "-i", "--input")) {
+            if (i + 1 < argc) {
+                opts.inputPath = argv[++i];
+            } else {
+                std::cerr << "Missing value for --input" << std::endl;
+            }
+        } else if (IsFlag(arg, "-o", "--output")) {
+            if (i + 1 < argc) {
+                opts.outputDir = argv[++i];
+            } else {
+                std::cerr << "Missing value for --output" << std::endl;
+            }
+        } else if (opts.command.empty()) {
+            opts.command = arg;
+        } else {
+            std::cerr << "Unrecognized argument: " << arg << std::endl;
+        }
+    }
+
+    if (opts.command.empty() && !opts.list) {
+        opts.help = true;
+    }
+
+    if (opts.help && opts.command.empty() && !opts.list) {
+        // Favor the "all" command when nothing was provided and we showed help
+        if (registry.Exists("all")) {
+            opts.command = "all";
+        }
+    }
+
+    return opts;
+}
+
+void PrintUsage(std::ostream& os, const CommandRegistry& registry) {
+    os << "Usage: ./DicomTools <command> [options]" << std::endl;
+    os << "Options:" << std::endl;
+    os << "  -h, --help           Show this help text" << std::endl;
+    os << "  -l, --list           List available commands" << std::endl;
+    os << "  -i, --input <path>   Specify DICOM file or directory" << std::endl;
+    os << "  -o, --output <dir>   Output directory (default: output)" << std::endl;
+    os << "  -v, --verbose        Print extra details for commands" << std::endl;
+    os << std::endl;
+    os << "Commands:" << std::endl;
+    registry.List(os);
+}

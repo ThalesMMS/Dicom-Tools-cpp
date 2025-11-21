@@ -12,16 +12,25 @@ A modular C++ repository designed to demonstrate, test, and benchmark functional
 | :--- | :--- | :--- |
 | **GDCM** | **Anonymization** | Redacts Patient Name, ID, and Birth Date. |
 | | **Decompression** | Transcodes compressed DICOMs to Raw (Implicit VR Little Endian). |
-| | **Tag Inspection** | Efficiently reads and displays specific tags. |
+| | **Tag Inspection** | Reads and displays common tags. |
+| | **UID Rewrite** | Regenerates Study/Series/SOP Instance UIDs. |
+| | **Dataset Dump** | Writes a verbose text dump of the DICOM dataset. |
+| | **JPEG2000 Transcode** | Tests JPEG2000 lossless codec support. |
 | **DCMTK** | **Tag Modification** | Modifies metadata (e.g., PatientID) and saves new files. |
 | | **Pixel Extraction** | Extracts pixel data and exports as PGM/PPM images. |
+| | **JPEG Lossless** | Re-encodes to JPEG Lossless (Process 14 SV1). |
+| | **Raw Dump** | Writes raw pixel buffer for regression checks. |
 | **ITK** | **Edge Detection** | Applies Canny Edge Detection filter. |
 | | **Smoothing** | Reduces noise using Discrete Gaussian Smoothing. |
 | | **Segmentation** | Segments structures using Binary Thresholding. |
 | | **Resampling** | Resamples volumes to isotropic spacing (1x1x1mm). |
+| | **Histogram EQ** | Adaptive histogram equalization for contrast. |
+| | **Slice Export** | Extracts the middle slice to PNG. |
 | **VTK** | **3D Mesh Generation** | Generates STL surfaces using Marching Cubes. |
 | | **MPR** | Extracts 2D slices (Multi-Planar Reformatting) from 3D volumes. |
 | | **Volume Export** | Converts DICOM series to VTK XML Image Data (`.vti`). |
+| | **Threshold Mask** | Builds a binary mask volume from a HU window. |
+| | **Metadata Export** | Writes patient/study metadata to text. |
 
 ## Prerequisites
 
@@ -64,20 +73,30 @@ The project generates a single executable `DicomTools` in the `build` directory.
 
 **Syntax:**
 ```bash
-./build/DicomTools <command> [optional: /path/to/file.dcm]
+./build/DicomTools <command> [options]
 ```
-*If no file is provided, it auto-detects the first `.dcm` file in the `input/` folder.*
 
-**Commands:**
-- `test-gdcm`: Run GDCM specific tests.
-- `test-dcmtk`: Run DCMTK specific tests.
-- `test-itk`: Run ITK specific tests.
-- `test-vtk`: Run VTK specific tests.
-- `all`: Run all available tests.
+**Useful options:**
+- `-i, --input <path>`: DICOM file or series directory (defaults to first `.dcm` under `input/`).
+- `-o, --output <dir>`: Output directory (defaults to `output/`).
+- `-l, --list`: Show all registered commands.
+- `-h, --help`: CLI help.
 
-**Example:**
+**High-level commands:**
+- `test-gdcm`, `test-dcmtk`, `test-itk`, `test-vtk`: Run all feature tests in each module.
+- `all`: Run every available test (shortcut to the above).
+
+**Granular commands (examples):**
+- `gdcm:anonymize`, `gdcm:dump`, `gdcm:transcode-j2k`
+- `dcmtk:jpeg-lossless`, `dcmtk:raw-dump`
+- `itk:histogram`, `itk:slice`
+- `vtk:mask`, `vtk:metadata`, `vtk:isosurface`
+
+**Examples:**
 ```bash
-./build/DicomTools test-itk input/dcm_series/IM-0001-0190.dcm
+./build/DicomTools --list
+./build/DicomTools test-itk --input input/dcm_series/IM-0001-0190.dcm --output tmp/itk_out
+./build/DicomTools vtk:mask
 ```
 
 ## Automated Testing
