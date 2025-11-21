@@ -1,23 +1,44 @@
 # Dicom-Tools-cpp
 
-This C++ project is designed to test functionalities of various DICOM and medical imaging libraries:
+A modular C++ repository designed to demonstrate, test, and benchmark functionalities of major medical imaging libraries:
 - **GDCM** (Grassroots DICOM)
 - **DCMTK** (DICOM Toolkit)
-- **VTK** (Visualization Toolkit)
 - **ITK** (Insight Segmentation and Registration Toolkit)
+- **VTK** (Visualization Toolkit)
 
-## Project Structure
+## Features Implemented
 
-- `src/`: Contains the source code (`main.cpp`).
-- `input/`: Place your test `.dcm` images here. The program will scan this directory.
-- `CMakeLists.txt`: CMake configuration file to find libraries and build the project.
+| Library | Feature | Description |
+| :--- | :--- | :--- |
+| **GDCM** | **Anonymization** | Redacts Patient Name, ID, and Birth Date. |
+| | **Decompression** | Transcodes compressed DICOMs to Raw (Implicit VR Little Endian). |
+| | **Tag Inspection** | Efficiently reads and displays specific tags. |
+| **DCMTK** | **Tag Modification** | Modifies metadata (e.g., PatientID) and saves new files. |
+| | **Pixel Extraction** | Extracts pixel data and exports as PGM/PPM images. |
+| **ITK** | **Edge Detection** | Applies Canny Edge Detection filter. |
+| | **Smoothing** | Reduces noise using Discrete Gaussian Smoothing. |
+| | **Segmentation** | Segments structures using Binary Thresholding. |
+| | **Resampling** | Resamples volumes to isotropic spacing (1x1x1mm). |
+| **VTK** | **3D Mesh Generation** | Generates STL surfaces using Marching Cubes. |
+| | **MPR** | Extracts 2D slices (Multi-Planar Reformatting) from 3D volumes. |
+| | **Volume Export** | Converts DICOM series to VTK XML Image Data (`.vti`). |
 
 ## Prerequisites
 
-You need to have the libraries you want to test installed on your system.
-- CMake (3.15 or higher)
-- C++ Compiler (supporting C++17)
-- Libraries: ITK, VTK, DCMTK, GDCM (optional, but recommended for full testing)
+- **CMake** (3.15 or higher)
+- **C++ Compiler** (C++17 support required)
+- **Python 3** (for automated testing)
+
+### Dependency Management
+
+You can install the required libraries via your package manager (e.g., `brew install gdcm dcmtk itk vtk`). 
+
+Alternatively, this repo includes a script to download and build all dependencies locally:
+
+```bash
+./scripts/build_deps.sh
+```
+*This will install dependencies into `deps/install`, which the CMake configuration automatically detects.*
 
 ## Building
 
@@ -31,22 +52,45 @@ You need to have the libraries you want to test installed on your system.
     ```bash
     cmake ..
     ```
-    *Note: If libraries are installed in non-standard locations, you may need to specify their paths (e.g., `-DITK_DIR=/path/to/itk`).*
 
-3.  Build:
+3.  Build the project:
     ```bash
     cmake --build .
     ```
 
 ## Usage
 
-Run the executable from the build directory:
+The project generates a single executable `DicomTools` in the `build` directory. It supports subcommands to target specific libraries.
 
+**Syntax:**
 ```bash
-./DicomTools
+./build/DicomTools <command> [optional: /path/to/file.dcm]
+```
+*If no file is provided, it auto-detects the first `.dcm` file in the `input/` folder.*
+
+**Commands:**
+- `test-gdcm`: Run GDCM specific tests.
+- `test-dcmtk`: Run DCMTK specific tests.
+- `test-itk`: Run ITK specific tests.
+- `test-vtk`: Run VTK specific tests.
+- `all`: Run all available tests.
+
+**Example:**
+```bash
+./build/DicomTools test-itk input/dcm_series/IM-0001-0190.dcm
 ```
 
-The program will:
-1.  List files found in the `input/` directory.
-2.  Report which libraries were successfully found and linked.
-3.  Run a basic "smoke test" (instantiation of a core object) for each enabled library.
+## Automated Testing
+
+A Python script is provided to run the full suite of tests and verify that the expected output files are generated correctly in the `output/` directory.
+
+```bash
+python3 tests/run_all.py
+```
+
+## Project Structure
+
+- `src/modules/`: Modular implementation for each library (GDCM, DCMTK, ITK, VTK).
+- `input/`: Directory for test DICOM images.
+- `output/`: All generated files (images, meshes, anonymized DICOMs) are saved here.
+- `scripts/`: Helper scripts for dependency setup.
