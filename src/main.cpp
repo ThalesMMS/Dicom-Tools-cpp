@@ -58,6 +58,11 @@ int main(int argc, char* argv[]) {
         std::cout << "Auto-detected input file: " << filePath << std::endl;
     }
 
+    // Ensure output directory exists
+    if (!fs::exists("output")) {
+        fs::create_directory("output");
+    }
+
     if (command == "test-gdcm") {
         GDCMTests::TestTagInspection(filePath);
         GDCMTests::TestAnonymization(filePath);
@@ -69,6 +74,7 @@ int main(int argc, char* argv[]) {
     } else if (command == "test-itk") {
         ITKTests::TestCannyEdgeDetection(filePath);
         ITKTests::TestGaussianSmoothing(filePath);
+        ITKTests::TestBinaryThresholding(filePath);
         ITKTests::TestResampling(filePath);
     } else if (command == "test-vtk") {
         VTKTests::TestImageExport(filePath);

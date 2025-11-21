@@ -15,7 +15,6 @@ add_compile_definitions(INPUT_DIR="${CMAKE_SOURCE_DIR}/input")
 # ITK
 find_package(ITK QUIET)
 if(ITK_FOUND)
-    include(${ITK_USE_FILE})
     message(STATUS "Found ITK: ${ITK_VERSION}")
     add_compile_definitions(USE_ITK)
 else()
@@ -34,7 +33,6 @@ endif()
 # DCMTK
 find_package(DCMTK QUIET)
 if(DCMTK_FOUND)
-    include_directories(${DCMTK_INCLUDE_DIRS})
     message(STATUS "Found DCMTK: ${DCMTK_VERSION}")
     add_compile_definitions(USE_DCMTK)
 else()
@@ -44,7 +42,6 @@ endif()
 # GDCM
 find_package(GDCM QUIET)
 if(GDCM_FOUND)
-    include(${GDCM_USE_FILE})
     message(STATUS "Found GDCM: ${GDCM_VERSION}")
     add_compile_definitions(USE_GDCM)
 else()
@@ -54,13 +51,14 @@ endif()
 # --- Executable ---
 add_executable(DicomTools 
     src/main.cpp
-    src/modules/GDCM/TagInspection.cpp
-    src/modules/DCMTK/TagModification.cpp
-    src/modules/ITK/CannyEdge.cpp
-    src/modules/VTK/ImageExport.cpp
+    src/modules/GDCM/GDCMTests.cpp
+    src/modules/DCMTK/DCMTKTests.cpp
+    src/modules/ITK/ITKTests.cpp
+    src/modules/VTK/VTKTests.cpp
 )
 
-# --- Linking ---
+# --- Linking & Includes ---
+
 if(ITK_FOUND)
     target_link_libraries(DicomTools PRIVATE ${ITK_LIBRARIES})
 endif()
@@ -70,9 +68,19 @@ if(VTK_FOUND)
 endif()
 
 if(DCMTK_FOUND)
+    target_include_directories(DicomTools PRIVATE ${DCMTK_INCLUDE_DIRS})
+    # Explicitly add library search path for DCMTK if standard paths fail
+    if(APPLE AND EXISTS "/opt/homebrew/lib")
+        target_link_directories(DicomTools PRIVATE "/opt/homebrew/lib")
+    endif()
     target_link_libraries(DicomTools PRIVATE ${DCMTK_LIBRARIES})
 endif()
 
 if(GDCM_FOUND)
+    if(GDCM_INCLUDE_DIRS)
+        target_include_directories(DicomTools PRIVATE ${GDCM_INCLUDE_DIRS})
+    else()
+        include(${GDCM_USE_FILE})
+    endif()
     target_link_libraries(DicomTools PRIVATE ${GDCM_LIBRARIES})
 endif()
