@@ -17,7 +17,9 @@
 #include "itkImage.h"
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
+#include "itkMedianImageFilter.h"
 #include "itkLinearInterpolateImageFunction.h"
+#include "itkNrrdImageIO.h"
 #include "itkPNGImageIO.h"
 #include "itkResampleImageFilter.h"
 #include "itkRescaleIntensityImageFilter.h"
@@ -36,10 +38,12 @@ void ITKTests::RegisterCommands(CommandRegistry& registry) {
         [](const CommandContext& ctx) {
             TestCannyEdgeDetection(ctx.inputPath, ctx.outputDir);
             TestGaussianSmoothing(ctx.inputPath, ctx.outputDir);
+            TestMedianFilter(ctx.inputPath, ctx.outputDir);
             TestBinaryThresholding(ctx.inputPath, ctx.outputDir);
             TestResampling(ctx.inputPath, ctx.outputDir);
             TestAdaptiveHistogram(ctx.inputPath, ctx.outputDir);
             TestSliceExtraction(ctx.inputPath, ctx.outputDir);
+            TestNRRDExport(ctx.inputPath, ctx.outputDir);
             return 0;
         }
     });
@@ -60,6 +64,26 @@ void ITKTests::RegisterCommands(CommandRegistry& registry) {
         "Adaptive histogram equalization for contrast boost",
         [](const CommandContext& ctx) {
             TestAdaptiveHistogram(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "itk:median",
+        "ITK",
+        "Median smoothing for salt-and-pepper noise removal",
+        [](const CommandContext& ctx) {
+            TestMedianFilter(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "itk:nrrd",
+        "ITK",
+        "Export the volume to NRRD for interchange",
+        [](const CommandContext& ctx) {
+            TestNRRDExport(ctx.inputPath, ctx.outputDir);
             return 0;
         }
     });
@@ -371,6 +395,90 @@ void ITKTests::TestSliceExtraction(const std::string& filename, const std::strin
     }
 }
 
+void ITKTests::TestMedianFilter(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [ITK] Median Filter ---" << std::endl;
+
+    using PixelType = signed short;
+    const unsigned int Dimension = 3;
+    using ImageType = itk::Image<PixelType, Dimension>;
+    using ReaderType = itk::ImageFileReader<ImageType>;
+    using FilterType = itk::MedianImageFilter<ImageType, ImageType>;
+    using WriterType = itk::ImageFileWriter<ImageType>;
+
+    ReaderType::Pointer reader = ReaderType::New();
+    reader->SetFileName(filename);
+    using ImageIOType = itk::GDCMImageIO;
+    ImageIOType::Pointer gdcmIO = ImageIOType::New();
+    reader->SetImageIO(gdcmIO);
+
+    try {
+        reader->Update();
+    } catch (itk::ExceptionObject& err) {
+        std::cerr << "ITK Exception: " << err << std::endl;
+        return;
+    }
+
+    FilterType::Pointer median = FilterType::New();
+    FilterType::InputSizeType radius;
+    radius.Fill(1);
+    median->SetRadius(radius);
+    median->SetInput(reader->GetOutput());
+
+    WriterType::Pointer writer = WriterType::New();
+    writer->SetFileName(JoinPath(outputDir, "itk_median.dcm"));
+    writer->SetInput(median->GetOutput());
+    writer->SetImageIO(gdcmIO);
+
+    try {
+        writer->Update();
+        std::cout << "Saved to '" << writer->GetFileName() << "'" << std::endl;
+    } catch (itk::ExceptionObject& err) {
+        std::cerr << "ITK Write Exception: " << err << std::endl;
+    }
+}
+
+void ITKTests::TestNRRDExport(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [ITK] NRRD Export ---" << std::endl;
+
+    using PixelType = signed short;
+    const unsigned int Dimension = 3;
+    using ImageType = itk::Image<PixelType, Dimension>;
+    using ReaderType = itk::ImageFileReader<ImageType>;
+    using RescaleType = itk::RescaleIntensityImageFilter<ImageType, ImageType>;
+    using WriterType = itk::ImageFileWriter<ImageType>;
+
+    ReaderType::Pointer reader = ReaderType::New();
+    reader->SetFileName(filename);
+    using ImageIOType = itk::GDCMImageIO;
+    ImageIOType::Pointer gdcmIO = ImageIOType::New();
+    reader->SetImageIO(gdcmIO);
+
+    try {
+        reader->Update();
+    } catch (itk::ExceptionObject& err) {
+        std::cerr << "ITK Exception: " << err << std::endl;
+        return;
+    }
+
+    RescaleType::Pointer rescale = RescaleType::New();
+    rescale->SetInput(reader->GetOutput());
+    rescale->SetOutputMinimum(0);
+    rescale->SetOutputMaximum(4095);
+
+    WriterType::Pointer writer = WriterType::New();
+    writer->SetFileName(JoinPath(outputDir, "itk_volume.nrrd"));
+    writer->SetInput(rescale->GetOutput());
+    writer->UseCompressionOn();
+    writer->SetImageIO(itk::NrrdImageIO::New());
+
+    try {
+        writer->Update();
+        std::cout << "Saved to '" << writer->GetFileName() << "'" << std::endl;
+    } catch (itk::ExceptionObject& err) {
+        std::cerr << "ITK Write Exception: " << err << std::endl;
+    }
+}
+
 #else
 void ITKTests::RegisterCommands(CommandRegistry&) {}
 void ITKTests::TestCannyEdgeDetection(const std::string&, const std::string&) { std::cout << "ITK not enabled." << std::endl; }
@@ -379,4 +487,6 @@ void ITKTests::TestBinaryThresholding(const std::string&, const std::string&) {}
 void ITKTests::TestResampling(const std::string&, const std::string&) {}
 void ITKTests::TestAdaptiveHistogram(const std::string&, const std::string&) {}
 void ITKTests::TestSliceExtraction(const std::string&, const std::string&) {}
+void ITKTests::TestMedianFilter(const std::string&, const std::string&) {}
+void ITKTests::TestNRRDExport(const std::string&, const std::string&) {}
 #endif

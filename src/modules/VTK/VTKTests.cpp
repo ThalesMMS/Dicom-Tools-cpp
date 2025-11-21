@@ -1,5 +1,7 @@
 #include "VTKTestInterface.h"
 
+#include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -9,12 +11,14 @@
 #ifdef USE_VTK
 #include "vtkDICOMImageReader.h"
 #include "vtkImageData.h"
+#include "vtkImageAccumulate.h"
 #include "vtkImageReslice.h"
 #include "vtkImageShiftScale.h"
 #include "vtkImageThreshold.h"
 #include "vtkMarchingCubes.h"
 #include "vtkMedicalImageProperties.h"
 #include "vtkNew.h"
+#include "vtkNIFTIImageWriter.h"
 #include "vtkPNGWriter.h"
 #include "vtkSmartPointer.h"
 #include "vtkSTLWriter.h"
@@ -42,9 +46,11 @@ void VTKTests::RegisterCommands(CommandRegistry& registry) {
         "Run all VTK feature tests",
         [](const CommandContext& ctx) {
             TestImageExport(ctx.inputPath, ctx.outputDir);
+            TestNiftiExport(ctx.inputPath, ctx.outputDir);
             TestIsosurfaceExtraction(ctx.inputPath, ctx.outputDir);
             TestMPR(ctx.inputPath, ctx.outputDir);
             TestThresholdMask(ctx.inputPath, ctx.outputDir);
+            TestVolumeStatistics(ctx.inputPath, ctx.outputDir);
             TestMetadataExport(ctx.inputPath, ctx.outputDir);
             return 0;
         }
@@ -56,6 +62,16 @@ void VTKTests::RegisterCommands(CommandRegistry& registry) {
         "Convert to VTI volume",
         [](const CommandContext& ctx) {
             TestImageExport(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "vtk:nifti",
+        "VTK",
+        "Export to NIfTI (.nii.gz) for interoperability",
+        [](const CommandContext& ctx) {
+            TestNiftiExport(ctx.inputPath, ctx.outputDir);
             return 0;
         }
     });
@@ -89,6 +105,16 @@ void VTKTests::RegisterCommands(CommandRegistry& registry) {
             return 0;
         }
     });
+
+    registry.Register({
+        "vtk:stats",
+        "VTK",
+        "Compute volume statistics (min/max/mean/stddev)",
+        [](const CommandContext& ctx) {
+            TestVolumeStatistics(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
 }
 
 void VTKTests::TestImageExport(const std::string& filename, const std::string& outputDir) {
@@ -105,6 +131,21 @@ void VTKTests::TestImageExport(const std::string& filename, const std::string& o
     writer->SetFileName(JoinPath(outputDir, "vtk_export.vti").c_str());
     writer->SetInputData(reader->GetOutput());
     writer->Write();
+    std::cout << "Saved to '" << writer->GetFileName() << "'" << std::endl;
+}
+
+void VTKTests::TestNiftiExport(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [VTK] NIfTI Export ---" << std::endl;
+
+    vtkNew<vtkDICOMImageReader> reader;
+    reader->SetDirectoryName(ResolveSeriesDirectory(filename).c_str());
+    reader->Update();
+
+    vtkNew<vtkNIFTIImageWriter> writer;
+    writer->SetFileName(JoinPath(outputDir, "vtk_volume.nii.gz").c_str());
+    writer->SetInputConnection(reader->GetOutputPort());
+    writer->Write();
+
     std::cout << "Saved to '" << writer->GetFileName() << "'" << std::endl;
 }
 
@@ -180,6 +221,49 @@ void VTKTests::TestThresholdMask(const std::string& filename, const std::string&
     std::cout << "Saved binary mask to '" << writer->GetFileName() << "'" << std::endl;
 }
 
+void VTKTests::TestVolumeStatistics(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [VTK] Volume Statistics ---" << std::endl;
+
+    vtkNew<vtkDICOMImageReader> reader;
+    reader->SetDirectoryName(ResolveSeriesDirectory(filename).c_str());
+    reader->Update();
+
+    double scalarRange[2];
+    reader->GetOutput()->GetScalarRange(scalarRange);
+    const int minBin = static_cast<int>(std::floor(scalarRange[0]));
+    const int maxBin = static_cast<int>(std::ceil(scalarRange[1]));
+    const int extent = std::max(1, std::min(8192, maxBin - minBin + 1));
+
+    vtkNew<vtkImageAccumulate> hist;
+    hist->SetInputConnection(reader->GetOutputPort());
+    hist->SetComponentExtent(0, extent - 1, 0, 0, 0, 0);
+    hist->SetComponentOrigin(minBin, 0, 0);
+    hist->SetComponentSpacing(1, 1, 1);
+    hist->IgnoreZeroOn();
+    hist->Update();
+
+    const double minValue = hist->GetMin()[0];
+    const double maxValue = hist->GetMax()[0];
+    const double meanValue = hist->GetMean()[0];
+    const double stddevValue = hist->GetStandardDeviation()[0];
+
+    std::string outFile = JoinPath(outputDir, "vtk_stats.txt");
+    std::ofstream out(outFile, std::ios::out | std::ios::trunc);
+    if (!out.is_open()) {
+        std::cerr << "Failed to open stats output: " << outFile << std::endl;
+        return;
+    }
+
+    int* dims = reader->GetOutput()->GetDimensions();
+    out << "Dimensions=" << dims[0] << "x" << dims[1] << "x" << dims[2] << "\n";
+    out << "Range=[" << minValue << ", " << maxValue << "]\n";
+    out << "Mean=" << meanValue << "\n";
+    out << "StdDev=" << stddevValue << "\n";
+    out.close();
+
+    std::cout << "Wrote stats to '" << outFile << "'" << std::endl;
+}
+
 void VTKTests::TestMetadataExport(const std::string& filename, const std::string& outputDir) {
     std::cout << "--- [VTK] Metadata Export ---" << std::endl;
 
@@ -213,8 +297,10 @@ void VTKTests::TestMetadataExport(const std::string& filename, const std::string
 #else
 void VTKTests::RegisterCommands(CommandRegistry&) {}
 void VTKTests::TestImageExport(const std::string&, const std::string&) { std::cout << "VTK not enabled." << std::endl; }
+void VTKTests::TestNiftiExport(const std::string&, const std::string&) {}
 void VTKTests::TestIsosurfaceExtraction(const std::string&, const std::string&) {}
 void VTKTests::TestMPR(const std::string&, const std::string&) {}
 void VTKTests::TestThresholdMask(const std::string&, const std::string&) {}
+void VTKTests::TestVolumeStatistics(const std::string&, const std::string&) {}
 void VTKTests::TestMetadataExport(const std::string&, const std::string&) {}
 #endif

@@ -19,6 +19,8 @@ CLIOptions ParseCLIArgs(int argc, char* argv[], const CommandRegistry& registry)
             opts.help = true;
         } else if (IsFlag(arg, "-l", "--list")) {
             opts.list = true;
+        } else if (IsFlag(arg, "-m", "--modules")) {
+            opts.modules = true;
         } else if (IsFlag(arg, "-v", "--verbose")) {
             opts.verbose = true;
         } else if (IsFlag(arg, "-i", "--input")) {
@@ -40,11 +42,11 @@ CLIOptions ParseCLIArgs(int argc, char* argv[], const CommandRegistry& registry)
         }
     }
 
-    if (opts.command.empty() && !opts.list) {
+    if (opts.command.empty() && !opts.list && !opts.modules) {
         opts.help = true;
     }
 
-    if (opts.help && opts.command.empty() && !opts.list) {
+    if (opts.help && opts.command.empty() && !opts.list && !opts.modules) {
         // Favor the "all" command when nothing was provided and we showed help
         if (registry.Exists("all")) {
             opts.command = "all";
@@ -59,6 +61,7 @@ void PrintUsage(std::ostream& os, const CommandRegistry& registry) {
     os << "Options:" << std::endl;
     os << "  -h, --help           Show this help text" << std::endl;
     os << "  -l, --list           List available commands" << std::endl;
+    os << "  -m, --modules        Show module availability and feature coverage" << std::endl;
     os << "  -i, --input <path>   Specify DICOM file or directory" << std::endl;
     os << "  -o, --output <dir>   Output directory (default: output)" << std::endl;
     os << "  -v, --verbose        Print extra details for commands" << std::endl;

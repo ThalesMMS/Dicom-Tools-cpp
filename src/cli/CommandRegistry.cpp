@@ -1,7 +1,8 @@
 #include "CommandRegistry.h"
 
+#include <algorithm>
 #include <iostream>
-#include <unordered_map>
+#include <map>
 
 void CommandRegistry::Register(const Command& command) {
     if (command.name.empty() || !command.action) {
@@ -31,12 +32,15 @@ int CommandRegistry::Run(const std::string& name, const CommandContext& context)
 }
 
 void CommandRegistry::List(std::ostream& os) const {
-    std::unordered_map<std::string, std::vector<const Command*>> grouped;
+    std::map<std::string, std::vector<const Command*>> grouped;
     for (const auto& cmd : ordered_) {
         grouped[cmd.module].push_back(&cmd);
     }
 
-    for (const auto& [module, commands] : grouped) {
+    for (auto& [module, commands] : grouped) {
+        std::sort(commands.begin(), commands.end(), [](const Command* lhs, const Command* rhs) {
+            return lhs->name < rhs->name;
+        });
         os << "[" << (module.empty() ? "General" : module) << "]" << std::endl;
         for (const Command* cmd : commands) {
             os << "  - " << cmd->name << ": " << cmd->description << std::endl;

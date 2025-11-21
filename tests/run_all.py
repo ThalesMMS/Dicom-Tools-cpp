@@ -50,6 +50,8 @@ if run_test("test-gdcm", "GDCM Features"):
     check_file("gdcm_reuid.dcm")
     check_file("gdcm_dump.txt")
     check_file("gdcm_jpeg2000.dcm")
+    check_file("gdcm_rle.dcm")
+    check_file("gdcm_stats.txt")
 else:
     tests_passed = False
 
@@ -59,6 +61,9 @@ if run_test("test-dcmtk", "DCMTK Features"):
     check_file("dcmtk_pixel_output.ppm")
     check_file("dcmtk_jpeg_lossless.dcm")
     check_file("dcmtk_raw_dump.bin")
+    check_file("dcmtk_explicit_vr.dcm")
+    check_file("dcmtk_metadata.txt")
+    check_file("dicomdir_media/DICOMDIR")
 else:
     tests_passed = False
 
@@ -66,20 +71,24 @@ else:
 if run_test("test-itk", "ITK Features"):
     check_file("itk_canny.dcm")
     check_file("itk_gaussian.dcm")
+    check_file("itk_median.dcm")
     check_file("itk_threshold.dcm")
     check_file("itk_resampled.dcm")
     check_file("itk_histogram_eq.dcm")
     check_file("itk_slice.png")
+    check_file("itk_volume.nrrd")
 else:
     tests_passed = False
 
 # VTK
 if run_test("test-vtk", "VTK Features"):
     check_file("vtk_export.vti")
+    check_file("vtk_volume.nii.gz")
     check_file("vtk_isosurface.stl")
     check_file("vtk_mpr_slice.png")
     check_file("vtk_threshold_mask.vti")
     check_file("vtk_metadata.txt")
+    check_file("vtk_stats.txt")
 else:
     tests_passed = False
 

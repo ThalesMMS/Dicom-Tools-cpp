@@ -7,6 +7,7 @@ struct CLIOptions {
     std::string inputPath;
     std::string outputDir{"output"};
     bool list{false};
+    bool modules{false};
     bool help{false};
     bool verbose{false};
 };

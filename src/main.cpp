@@ -1,5 +1,7 @@
 #include <iostream>
+#include <iomanip>
 #include <string>
+#include <vector>
 
 #include "cli/CLIOptions.h"
 #include "cli/CLIParser.h"
@@ -9,6 +11,71 @@
 #include "modules/ITK/ITKTestInterface.h"
 #include "modules/VTK/VTKTestInterface.h"
 #include "utils/FileSystemUtils.h"
+
+struct ModuleSummary {
+    std::string name;
+    bool enabled{false};
+    std::vector<std::string> highlights;
+};
+
+std::vector<ModuleSummary> BuildModuleSummaries() {
+    return {
+        {
+            "GDCM",
+#ifdef USE_GDCM
+            true,
+#else
+            false,
+#endif
+            {"Anonymization", "Transfer Syntax (RAW/J2K/RLE)", "Tag + Pixel QA"}
+        },
+        {
+            "DCMTK",
+#ifdef USE_DCMTK
+            true,
+#else
+            false,
+#endif
+            {"Tag editing", "Pixel export", "DICOMDIR + codecs/metadata"}
+        },
+        {
+            "ITK",
+#ifdef USE_ITK
+            true,
+#else
+            false,
+#endif
+            {"Filters (Canny/Gaussian/Median)", "Segmentation + resample", "NRRD + GDCM I/O"}
+        },
+        {
+            "VTK",
+#ifdef USE_VTK
+            true,
+#else
+            false,
+#endif
+            {"VTI/NIfTI export", "Surface/MPR/Mask", "Metadata + stats"}
+        }
+    };
+}
+
+void PrintModuleSummary(const std::vector<ModuleSummary>& modules) {
+    std::cout << "Module Availability" << std::endl;
+    std::cout << "-------------------" << std::endl;
+    for (const auto& module : modules) {
+        std::cout << "  " << std::left << std::setw(5) << module.name << " : "
+                  << (module.enabled ? "ENABLED " : "DISABLED")
+                  << " | ";
+        for (std::size_t i = 0; i < module.highlights.size(); ++i) {
+            std::cout << module.highlights[i];
+            if (i + 1 < module.highlights.size()) {
+                std::cout << ", ";
+            }
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+}
 
 int main(int argc, char* argv[]) {
     std::cout << "========================================" << std::endl;
@@ -26,15 +93,26 @@ int main(int argc, char* argv[]) {
         "Run every module suite",
         [&registry](const CommandContext& ctx) {
             int rc = 0;
-            rc |= registry.Run("test-gdcm", ctx);
-            rc |= registry.Run("test-dcmtk", ctx);
-            rc |= registry.Run("test-itk", ctx);
-            rc |= registry.Run("test-vtk", ctx);
+            const std::vector<std::string> suites = {"test-gdcm", "test-dcmtk", "test-itk", "test-vtk"};
+            for (const auto& suite : suites) {
+                if (registry.Exists(suite)) {
+                    rc |= registry.Run(suite, ctx);
+                } else {
+                    std::cout << "Skipping " << suite << " (module not available)" << std::endl;
+                }
+            }
             return rc;
         }
     });
 
     CLIOptions options = ParseCLIArgs(argc, argv, registry);
+
+    if (options.modules) {
+        PrintModuleSummary(BuildModuleSummaries());
+        if (options.command.empty() && !options.list && !options.help) {
+            return 0;
+        }
+    }
 
     if (options.list) {
         registry.List(std::cout);

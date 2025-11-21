@@ -12,4 +12,6 @@ namespace GDCMTests {
     void TestUIDRewrite(const std::string& filename, const std::string& outputDir);
     void TestDatasetDump(const std::string& filename, const std::string& outputDir);
     void TestJPEG2000Transcode(const std::string& filename, const std::string& outputDir);
+    void TestRLETranscode(const std::string& filename, const std::string& outputDir);
+    void TestPixelStatistics(const std::string& filename, const std::string& outputDir);
 }

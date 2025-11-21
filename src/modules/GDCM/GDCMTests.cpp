@@ -1,8 +1,12 @@
 #include "GDCMTestInterface.h"
 
 #include <filesystem>
+#include <algorithm>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <limits>
+#include <vector>
 
 #include "cli/CommandRegistry.h"
 
@@ -38,6 +42,8 @@ void GDCMTests::RegisterCommands(CommandRegistry& registry) {
             TestUIDRewrite(ctx.inputPath, ctx.outputDir);
             TestDatasetDump(ctx.inputPath, ctx.outputDir);
             TestJPEG2000Transcode(ctx.inputPath, ctx.outputDir);
+            TestRLETranscode(ctx.inputPath, ctx.outputDir);
+            TestPixelStatistics(ctx.inputPath, ctx.outputDir);
             return 0;
         }
     });
@@ -88,6 +94,26 @@ void GDCMTests::RegisterCommands(CommandRegistry& registry) {
         "Write a verbose dataset dump to text for QA",
         [](const CommandContext& ctx) {
             TestDatasetDump(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "gdcm:transcode-rle",
+        "GDCM",
+        "Transcode to RLE Lossless for encapsulated transfer syntax validation",
+        [](const CommandContext& ctx) {
+            TestRLETranscode(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "gdcm:stats",
+        "GDCM",
+        "Compute min/max/mean pixel stats and write to text",
+        [](const CommandContext& ctx) {
+            TestPixelStatistics(ctx.inputPath, ctx.outputDir);
             return 0;
         }
     });
@@ -270,6 +296,137 @@ void GDCMTests::TestJPEG2000Transcode(const std::string& filename, const std::st
     }
 }
 
+void GDCMTests::TestRLETranscode(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [GDCM] RLE Lossless Transcode ---" << std::endl;
+
+    gdcm::ImageReader reader;
+    reader.SetFileName(filename.c_str());
+    if (!reader.Read()) {
+        std::cerr << "Could not read file for RLE transcode." << std::endl;
+        return;
+    }
+
+    gdcm::ImageChangeTransferSyntax change;
+    change.SetTransferSyntax(gdcm::TransferSyntax::RLELossless);
+    change.SetInput(reader.GetImage());
+
+    if (!change.Change()) {
+        std::cerr << "Transfer syntax change to RLE failed (codec support may be missing)." << std::endl;
+        return;
+    }
+
+    gdcm::ImageWriter writer;
+    std::string outFilename = JoinPath(outputDir, "gdcm_rle.dcm");
+    writer.SetFileName(outFilename.c_str());
+    writer.SetFile(reader.GetFile());
+    writer.SetImage(change.GetOutput());
+
+    if (writer.Write()) {
+        std::cout << "Transcoded to RLE and saved to: " << outFilename << std::endl;
+    } else {
+        std::cerr << "Failed to write RLE transcoded file." << std::endl;
+    }
+}
+
+namespace {
+struct PixelStats {
+    double min{0.0};
+    double max{0.0};
+    double mean{0.0};
+    std::size_t count{0};
+};
+
+template <typename T>
+PixelStats CalculateStats(const std::vector<char>& buffer) {
+    PixelStats stats;
+    const auto* data = reinterpret_cast<const T*>(buffer.data());
+    const std::size_t count = buffer.size() / sizeof(T);
+    if (count == 0) {
+        return stats;
+    }
+
+    T minVal = std::numeric_limits<T>::max();
+    T maxVal = std::numeric_limits<T>::lowest();
+    long double sum = 0.0;
+    for (std::size_t i = 0; i < count; ++i) {
+        T value = data[i];
+        minVal = std::min(minVal, value);
+        maxVal = std::max(maxVal, value);
+        sum += value;
+    }
+
+    stats.count = count;
+    stats.min = static_cast<double>(minVal);
+    stats.max = static_cast<double>(maxVal);
+    stats.mean = static_cast<double>(sum / static_cast<long double>(count));
+    return stats;
+}
+}
+
+void GDCMTests::TestPixelStatistics(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [GDCM] Pixel Statistics ---" << std::endl;
+
+    gdcm::ImageReader reader;
+    reader.SetFileName(filename.c_str());
+    if (!reader.Read()) {
+        std::cerr << "Could not read file for statistics." << std::endl;
+        return;
+    }
+
+    const gdcm::Image& image = reader.GetImage();
+    const unsigned long bufferLength = image.GetBufferLength();
+    if (bufferLength == 0) {
+        std::cerr << "Image buffer length is zero." << std::endl;
+        return;
+    }
+
+    std::vector<char> buffer(bufferLength);
+    if (!image.GetBuffer(buffer.data())) {
+        std::cerr << "Failed to read pixel buffer for statistics." << std::endl;
+        return;
+    }
+
+    const gdcm::PixelFormat& pf = image.GetPixelFormat();
+    PixelStats stats;
+    bool supported = true;
+    switch (pf.GetScalarType()) {
+        case gdcm::PixelFormat::UINT8:
+            stats = CalculateStats<uint8_t>(buffer);
+            break;
+        case gdcm::PixelFormat::INT8:
+            stats = CalculateStats<int8_t>(buffer);
+            break;
+        case gdcm::PixelFormat::UINT16:
+            stats = CalculateStats<uint16_t>(buffer);
+            break;
+        case gdcm::PixelFormat::INT16:
+            stats = CalculateStats<int16_t>(buffer);
+            break;
+        default:
+            supported = false;
+            stats = CalculateStats<uint8_t>(buffer);
+            break;
+    }
+
+    std::string outFilename = JoinPath(outputDir, "gdcm_stats.txt");
+    std::ofstream out(outFilename, std::ios::out | std::ios::trunc);
+    if (!out.is_open()) {
+        std::cerr << "Failed to open output for statistics: " << outFilename << std::endl;
+        return;
+    }
+
+    out << "PixelCount=" << stats.count << "\n";
+    out << "BitsAllocated=" << pf.GetBitsAllocated() << "\n";
+    out << "SamplesPerPixel=" << pf.GetSamplesPerPixel() << "\n";
+    out << "Min=" << stats.min << "\n";
+    out << "Max=" << stats.max << "\n";
+    out << "Mean=" << stats.mean << "\n";
+    out << "ScalarTypeSupported=" << (supported ? "yes" : "fallback_uint8") << "\n";
+    out.close();
+
+    std::cout << "Wrote pixel statistics to: " << outFilename << std::endl;
+}
+
 #else
 void GDCMTests::RegisterCommands(CommandRegistry&) {}
 void GDCMTests::TestTagInspection(const std::string&, const std::string&) { std::cout << "GDCM not enabled." << std::endl; }
@@ -278,4 +435,6 @@ void GDCMTests::TestDecompression(const std::string&, const std::string&) {}
 void GDCMTests::TestUIDRewrite(const std::string&, const std::string&) {}
 void GDCMTests::TestDatasetDump(const std::string&, const std::string&) {}
 void GDCMTests::TestJPEG2000Transcode(const std::string&, const std::string&) {}
+void GDCMTests::TestRLETranscode(const std::string&, const std::string&) {}
+void GDCMTests::TestPixelStatistics(const std::string&, const std::string&) {}
 #endif
