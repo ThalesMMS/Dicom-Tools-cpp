@@ -11,10 +11,11 @@
 #include "vtkImageAccumulate.h"
 #include "vtkImageData.h"
 #include "vtkImageReslice.h"
+#include "vtkImageResample.h"
 #include "vtkImageShiftScale.h"
 #include "vtkImageThreshold.h"
+#include "vtkImageSlabReslice.h"
 #include "vtkMarchingCubes.h"
-#include "vtkMedicalImageProperties.h"
 #include "vtkNew.h"
 #include "vtkNIFTIImageWriter.h"
 #include "vtkPNGWriter.h"
@@ -191,11 +192,6 @@ void VTKTests::TestMetadataExport(const std::string& filename, const std::string
     reader->SetDirectoryName(ResolveSeriesDirectory(filename).c_str());
     reader->Update();
 
-    vtkMedicalImageProperties* props = reader->GetMedicalImageProperties();
-    if (!props) {
-        std::cerr << "No medical image properties available for metadata export." << std::endl;
-        return;
-    }
     std::string outFile = JoinPath(outputDir, "vtk_metadata.txt");
     std::ofstream out(outFile, std::ios::out | std::ios::trunc);
     if (!out.is_open()) {
@@ -203,15 +199,94 @@ void VTKTests::TestMetadataExport(const std::string& filename, const std::string
         return;
     }
 
-    out << "PatientName: " << props->GetPatientName() << "\n";
-    out << "PatientID: " << props->GetPatientID() << "\n";
-    out << "StudyInstanceUID: " << props->GetStudyID() << "\n";
-    out << "SeriesDescription: " << props->GetSeriesDescription() << "\n";
-    out << "Modality: " << props->GetModality() << "\n";
-    out << "InstitutionName: " << props->GetInstitutionName() << "\n";
+    int* dims = reader->GetOutput()->GetDimensions();
+    double spacing[3];
+    reader->GetOutput()->GetSpacing(spacing);
+    float* origin = reader->GetImagePositionPatient();
+    float* orientation = reader->GetImageOrientationPatient();
+
+    out << "PatientName: " << (reader->GetPatientName() ? reader->GetPatientName() : "") << "\n";
+    out << "StudyInstanceUID: " << (reader->GetStudyUID() ? reader->GetStudyUID() : "") << "\n";
+    out << "StudyID: " << (reader->GetStudyID() ? reader->GetStudyID() : "") << "\n";
+    out << "TransferSyntaxUID: " << (reader->GetTransferSyntaxUID() ? reader->GetTransferSyntaxUID() : "") << "\n";
+    out << "Dimensions: " << dims[0] << "x" << dims[1] << "x" << dims[2] << "\n";
+    out << "Spacing: " << spacing[0] << "x" << spacing[1] << "x" << spacing[2] << "\n";
+    out << "Origin: " << origin[0] << "," << origin[1] << "," << origin[2] << "\n";
+    out << "Orientation: ";
+    if (orientation) {
+        out << orientation[0] << "," << orientation[1] << "," << orientation[2] << ","
+            << orientation[3] << "," << orientation[4] << "," << orientation[5] << "\n";
+    } else {
+        out << "\n";
+    }
     out.close();
 
     std::cout << "Wrote metadata summary to '" << outFile << "'" << std::endl;
+}
+
+void VTKTests::TestIsotropicResample(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [VTK] Isotropic Resample ---" << std::endl;
+
+    vtkNew<vtkDICOMImageReader> reader;
+    reader->SetDirectoryName(ResolveSeriesDirectory(filename).c_str());
+    reader->Update();
+
+    double* originalSpacing = reader->GetOutput()->GetSpacing();
+
+    vtkNew<vtkImageResample> resample;
+    resample->SetInputConnection(reader->GetOutputPort());
+    resample->SetAxisOutputSpacing(0, 1.0);
+    resample->SetAxisOutputSpacing(1, 1.0);
+    resample->SetAxisOutputSpacing(2, 1.0);
+    resample->SetInterpolationModeToLinear();
+    resample->Update();
+
+    vtkNew<vtkXMLImageDataWriter> writer;
+    writer->SetFileName(JoinPath(outputDir, "vtk_resampled.vti").c_str());
+    writer->SetInputConnection(resample->GetOutputPort());
+    writer->Write();
+
+    double* newSpacing = resample->GetOutput()->GetSpacing();
+    std::cout << "Resampled spacing " << originalSpacing[0] << "x" << originalSpacing[1] << "x" << originalSpacing[2]
+              << " -> " << newSpacing[0] << "x" << newSpacing[1] << "x" << newSpacing[2]
+              << " and saved to '" << writer->GetFileName() << "'" << std::endl;
+}
+
+void VTKTests::TestMaximumIntensityProjection(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [VTK] Maximum Intensity Projection ---" << std::endl;
+
+    vtkNew<vtkDICOMImageReader> reader;
+    reader->SetDirectoryName(ResolveSeriesDirectory(filename).c_str());
+    reader->Update();
+
+    double range[2];
+    reader->GetOutput()->GetScalarRange(range);
+    double center[3];
+    reader->GetOutput()->GetCenter(center);
+    double spacing[3];
+    reader->GetOutput()->GetSpacing(spacing);
+
+    vtkNew<vtkImageSlabReslice> slab;
+    slab->SetInputConnection(reader->GetOutputPort());
+    slab->SetBlendModeToMax();
+    slab->SetSlabThickness(std::max(1.0, spacing[2] * 8.0));
+    slab->SetSlabResolution(spacing[2]);
+    slab->SetOutputDimensionality(2);
+    slab->SetResliceAxesDirectionCosines(1, 0, 0, 0, 1, 0, 0, 0, 1);
+    slab->SetResliceAxesOrigin(center);
+
+    vtkNew<vtkImageShiftScale> shiftScale;
+    shiftScale->SetInputConnection(slab->GetOutputPort());
+    shiftScale->SetShift(-range[0]);
+    shiftScale->SetScale(255.0 / std::max(1.0, range[1] - range[0]));
+    shiftScale->SetOutputScalarTypeToUnsignedChar();
+
+    vtkNew<vtkPNGWriter> writer;
+    writer->SetFileName(JoinPath(outputDir, "vtk_mip.png").c_str());
+    writer->SetInputConnection(shiftScale->GetOutputPort());
+    writer->Write();
+
+    std::cout << "Saved axial MIP PNG to '" << writer->GetFileName() << "'" << std::endl;
 }
 
 #else
@@ -223,5 +298,7 @@ void TestThresholdMask(const std::string&, const std::string&) {}
 void TestMetadataExport(const std::string&, const std::string&) {}
 void TestNiftiExport(const std::string&, const std::string&) {}
 void TestVolumeStatistics(const std::string&, const std::string&) {}
+void TestIsotropicResample(const std::string&, const std::string&) {}
+void TestMaximumIntensityProjection(const std::string&, const std::string&) {}
 } // namespace VTKTests
 #endif

@@ -11,4 +11,8 @@ namespace ITKTests {
     void TestSliceExtraction(const std::string& filename, const std::string& outputDir);
     void TestMedianFilter(const std::string& filename, const std::string& outputDir);
     void TestNRRDExport(const std::string& filename, const std::string& outputDir);
+    void TestOtsuSegmentation(const std::string& filename, const std::string& outputDir);
+    void TestAnisotropicDenoise(const std::string& filename, const std::string& outputDir);
+    void TestMaximumIntensityProjection(const std::string& filename, const std::string& outputDir);
+    void TestNiftiExport(const std::string& filename, const std::string& outputDir);
 }

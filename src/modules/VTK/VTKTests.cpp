@@ -15,7 +15,9 @@ void VTKTests::RegisterCommands(CommandRegistry& registry) {
             TestNiftiExport(ctx.inputPath, ctx.outputDir);
             TestIsosurfaceExtraction(ctx.inputPath, ctx.outputDir);
             TestMPR(ctx.inputPath, ctx.outputDir);
+            TestIsotropicResample(ctx.inputPath, ctx.outputDir);
             TestThresholdMask(ctx.inputPath, ctx.outputDir);
+            TestMaximumIntensityProjection(ctx.inputPath, ctx.outputDir);
             TestVolumeStatistics(ctx.inputPath, ctx.outputDir);
             TestMetadataExport(ctx.inputPath, ctx.outputDir);
             return 0;
@@ -53,11 +55,31 @@ void VTKTests::RegisterCommands(CommandRegistry& registry) {
     });
 
     registry.Register({
+        "vtk:resample",
+        "VTK",
+        "Resample to isotropic spacing (1mm)",
+        [](const CommandContext& ctx) {
+            TestIsotropicResample(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
         "vtk:mask",
         "VTK",
         "Binary threshold to create a segmentation mask",
         [](const CommandContext& ctx) {
             TestThresholdMask(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "vtk:mip",
+        "VTK",
+        "Maximum intensity projection to PNG",
+        [](const CommandContext& ctx) {
+            TestMaximumIntensityProjection(ctx.inputPath, ctx.outputDir);
             return 0;
         }
     });

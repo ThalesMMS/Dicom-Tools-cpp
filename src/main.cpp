@@ -27,7 +27,7 @@ std::vector<ModuleSummary> BuildModuleSummaries() {
 #else
             false,
 #endif
-            {"Anonymization", "Transfer Syntax (RAW/J2K/RLE)", "Tag + Pixel QA"}
+            {"Anonymization + previews", "Transfer Syntax (RAW/J2K/RLE/JLS)", "Tag scan + pixel QA"}
         },
         {
             "DCMTK",
@@ -36,7 +36,7 @@ std::vector<ModuleSummary> BuildModuleSummaries() {
 #else
             false,
 #endif
-            {"Tag editing", "Pixel export", "DICOMDIR + codecs/metadata"}
+            {"Tag editing + preview", "Pixel export/PPM/BMP", "DICOMDIR + JPEG/RLE codecs"}
         },
         {
             "ITK",
@@ -45,7 +45,7 @@ std::vector<ModuleSummary> BuildModuleSummaries() {
 #else
             false,
 #endif
-            {"Filters (Canny/Gaussian/Median)", "Segmentation + resample", "NRRD + GDCM I/O"}
+            {"Filters + denoise", "Segmentation/MIP/resample", "NRRD + NIfTI export"}
         },
         {
             "VTK",
@@ -54,7 +54,7 @@ std::vector<ModuleSummary> BuildModuleSummaries() {
 #else
             false,
 #endif
-            {"VTI/NIfTI export", "Surface/MPR/Mask", "Metadata + stats"}
+            {"VTI/NIfTI export", "Surface/MPR/MIP/Mask", "Metadata + stats/resample"}
         }
     };
 }

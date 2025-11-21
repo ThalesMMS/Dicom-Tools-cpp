@@ -10,4 +10,6 @@ namespace VTKTests {
     void TestMetadataExport(const std::string& filename, const std::string& outputDir);
     void TestNiftiExport(const std::string& filename, const std::string& outputDir);
     void TestVolumeStatistics(const std::string& filename, const std::string& outputDir);
+    void TestIsotropicResample(const std::string& filename, const std::string& outputDir);
+    void TestMaximumIntensityProjection(const std::string& filename, const std::string& outputDir);
 }

@@ -11,4 +11,7 @@ namespace GDCMTests {
     void TestJPEG2000Transcode(const std::string& filename, const std::string& outputDir);
     void TestRLETranscode(const std::string& filename, const std::string& outputDir);
     void TestPixelStatistics(const std::string& filename, const std::string& outputDir);
+    void TestJPEGLSTranscode(const std::string& filename, const std::string& outputDir);
+    void TestDirectoryScan(const std::string& path, const std::string& outputDir);
+    void TestPreviewExport(const std::string& filename, const std::string& outputDir);
 }

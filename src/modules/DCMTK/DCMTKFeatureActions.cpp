@@ -11,6 +11,9 @@
 #include "dcmtk/dcmdata/dcddirif.h"
 #include "dcmtk/dcmdata/dctk.h"
 #include "dcmtk/dcmimgle/dcmimage.h"
+#include "dcmtk/dcmdata/dcrledrg.h"
+#include "dcmtk/dcmdata/dcrleerg.h"
+#include "dcmtk/dcmdata/dcxfer.h"
 #include "dcmtk/dcmjpeg/djdecode.h"
 #include "dcmtk/dcmjpeg/djencode.h"
 
@@ -130,7 +133,7 @@ void DCMTKTests::TestDICOMDIRGeneration(const std::string& directory, const std:
     OFFilename rootDir(mediaRoot.c_str());
     DicomDirInterface dirif;
     dirif.disableConsistencyCheck(OFTrue);
-    OFCondition status = dirif.createNewDicomDir(AP_GeneralPurpose, dicomdirName, "DICOMTOOLS");
+    OFCondition status = dirif.createNewDicomDir(DicomDirInterface::AP_GeneralPurpose, dicomdirName, "DICOMTOOLS");
     if (status.bad()) {
         std::cerr << "Failed to create DICOMDIR scaffold: " << status.text() << std::endl;
         return;
@@ -197,7 +200,7 @@ void DCMTKTests::TestExplicitVRRewrite(const std::string& filename, const std::s
     }
 
     std::string outFile = JoinPath(outputDir, "dcmtk_explicit_vr.dcm");
-    status = fileformat.saveFile(outFile.c_str(), EXS_ExplicitVRLittleEndian);
+    status = fileformat.saveFile(outFile.c_str(), EXS_LittleEndianExplicit);
     if (status.good()) {
         std::cout << "Saved Explicit VR Little Endian copy to '" << outFile << "'" << std::endl;
     } else {
@@ -256,6 +259,85 @@ void DCMTKTests::TestMetadataReport(const std::string& filename, const std::stri
     std::cout << "Wrote metadata summary to '" << outFile << "'" << std::endl;
 }
 
+void DCMTKTests::TestRLEReencode(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [DCMTK] RLE Lossless Transcode ---" << std::endl;
+    DcmRLEDecoderRegistration::registerCodecs();
+    DcmRLEEncoderRegistration::registerCodecs();
+
+    DcmFileFormat fileformat;
+    OFCondition status = fileformat.loadFile(filename.c_str());
+    if (!status.good()) {
+        std::cerr << "Error reading file for RLE transcode: " << status.text() << std::endl;
+        DcmRLEDecoderRegistration::cleanup();
+        DcmRLEEncoderRegistration::cleanup();
+        return;
+    }
+
+    const E_TransferSyntax targetXfer = EXS_RLELossless;
+    if (fileformat.getDataset()->chooseRepresentation(targetXfer, nullptr).good() &&
+        fileformat.getDataset()->canWriteXfer(targetXfer)) {
+        std::string outFile = JoinPath(outputDir, "dcmtk_rle.dcm");
+        status = fileformat.saveFile(outFile.c_str(), targetXfer);
+        if (status.good()) {
+            std::cout << "Saved RLE Lossless file to '" << outFile << "'" << std::endl;
+        } else {
+            std::cerr << "RLE save failed: " << status.text() << std::endl;
+        }
+    } else {
+        std::cerr << "RLE representation not supported for this dataset." << std::endl;
+    }
+
+    DcmRLEDecoderRegistration::cleanup();
+    DcmRLEEncoderRegistration::cleanup();
+}
+
+void DCMTKTests::TestJPEGBaseline(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [DCMTK] JPEG Baseline (Process 1) ---" << std::endl;
+    DJDecoderRegistration::registerCodecs();
+    DJEncoderRegistration::registerCodecs();
+
+    DcmFileFormat fileformat;
+    OFCondition status = fileformat.loadFile(filename.c_str());
+    if (!status.good()) {
+        std::cerr << "Error reading file for JPEG Baseline: " << status.text() << std::endl;
+        DJDecoderRegistration::cleanup();
+        DJEncoderRegistration::cleanup();
+        return;
+    }
+
+    std::string outFile = JoinPath(outputDir, "dcmtk_jpeg_baseline.dcm");
+    status = fileformat.saveFile(outFile.c_str(), EXS_JPEGProcess1);
+    if (status.good()) {
+        std::cout << "Saved JPEG Baseline copy to '" << outFile << "'" << std::endl;
+    } else {
+        std::cerr << "JPEG Baseline transcode failed: " << status.text() << std::endl;
+    }
+
+    DJDecoderRegistration::cleanup();
+    DJEncoderRegistration::cleanup();
+}
+
+void DCMTKTests::TestBMPPreview(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [DCMTK] BMP Preview ---" << std::endl;
+
+    DicomImage image(filename.c_str());
+    if (image.getStatus() != EIS_Normal) {
+        std::cerr << "Could not load image for BMP export: " << DicomImage::getString(image.getStatus()) << std::endl;
+        return;
+    }
+
+    if (image.isMonochrome()) {
+        image.setMinMaxWindow();
+    }
+
+    std::string outFile = JoinPath(outputDir, "dcmtk_preview.bmp");
+    if (image.writeBMP(outFile.c_str())) {
+        std::cout << "Saved BMP preview to '" << outFile << "'" << std::endl;
+    } else {
+        std::cerr << "Failed to write BMP preview." << std::endl;
+    }
+}
+
 void DCMTKTests::TestRawDump(const std::string& filename, const std::string& outputDir) {
     std::cout << "--- [DCMTK] Raw Pixel Dump ---" << std::endl;
     DicomImage image(filename.c_str());
@@ -296,5 +378,8 @@ void TestLosslessJPEGReencode(const std::string&, const std::string&) {}
 void TestRawDump(const std::string&, const std::string&) {}
 void TestExplicitVRRewrite(const std::string&, const std::string&) {}
 void TestMetadataReport(const std::string&, const std::string&) {}
+void TestRLEReencode(const std::string&, const std::string&) {}
+void TestJPEGBaseline(const std::string&, const std::string&) {}
+void TestBMPPreview(const std::string&, const std::string&) {}
 } // namespace DCMTKTests
 #endif

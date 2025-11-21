@@ -18,7 +18,10 @@ void GDCMTests::RegisterCommands(CommandRegistry& registry) {
             TestDatasetDump(ctx.inputPath, ctx.outputDir);
             TestJPEG2000Transcode(ctx.inputPath, ctx.outputDir);
             TestRLETranscode(ctx.inputPath, ctx.outputDir);
+            TestJPEGLSTranscode(ctx.inputPath, ctx.outputDir);
             TestPixelStatistics(ctx.inputPath, ctx.outputDir);
+            TestDirectoryScan(ctx.inputPath, ctx.outputDir);
+            TestPreviewExport(ctx.inputPath, ctx.outputDir);
             return 0;
         }
     });
@@ -49,6 +52,16 @@ void GDCMTests::RegisterCommands(CommandRegistry& registry) {
         "Transcode to JPEG2000 (lossless) to validate codec support",
         [](const CommandContext& ctx) {
             TestJPEG2000Transcode(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "gdcm:jpegls",
+        "GDCM",
+        "Transcode to JPEG-LS Lossless to validate codec support",
+        [](const CommandContext& ctx) {
+            TestJPEGLSTranscode(ctx.inputPath, ctx.outputDir);
             return 0;
         }
     });
@@ -89,6 +102,26 @@ void GDCMTests::RegisterCommands(CommandRegistry& registry) {
         "Compute min/max/mean pixel stats and write to text",
         [](const CommandContext& ctx) {
             TestPixelStatistics(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "gdcm:scan",
+        "GDCM",
+        "Scan an input directory and index studies/series to CSV",
+        [](const CommandContext& ctx) {
+            TestDirectoryScan(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "gdcm:preview",
+        "GDCM",
+        "Export an 8-bit PGM preview from the first slice",
+        [](const CommandContext& ctx) {
+            TestPreviewExport(ctx.inputPath, ctx.outputDir);
             return 0;
         }
     });

@@ -14,9 +14,12 @@ void DCMTKTests::RegisterCommands(CommandRegistry& registry) {
             TestTagModification(ctx.inputPath, ctx.outputDir);
             TestPixelDataExtraction(ctx.inputPath, ctx.outputDir);
             TestLosslessJPEGReencode(ctx.inputPath, ctx.outputDir);
+            TestJPEGBaseline(ctx.inputPath, ctx.outputDir);
+            TestRLEReencode(ctx.inputPath, ctx.outputDir);
             TestRawDump(ctx.inputPath, ctx.outputDir);
             TestExplicitVRRewrite(ctx.inputPath, ctx.outputDir);
             TestMetadataReport(ctx.inputPath, ctx.outputDir);
+            TestBMPPreview(ctx.inputPath, ctx.outputDir);
             TestDICOMDIRGeneration(ctx.inputPath, ctx.outputDir);
             return 0;
         }
@@ -53,6 +56,26 @@ void DCMTKTests::RegisterCommands(CommandRegistry& registry) {
     });
 
     registry.Register({
+        "dcmtk:jpeg-baseline",
+        "DCMTK",
+        "Re-encode to JPEG Baseline (Process 1) to test lossy codecs",
+        [](const CommandContext& ctx) {
+            TestJPEGBaseline(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "dcmtk:rle",
+        "DCMTK",
+        "Re-encode to RLE Lossless",
+        [](const CommandContext& ctx) {
+            TestRLEReencode(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
         "dcmtk:raw-dump",
         "DCMTK",
         "Dump raw pixel buffer for quick regression checks",
@@ -78,6 +101,16 @@ void DCMTKTests::RegisterCommands(CommandRegistry& registry) {
         "Export common metadata fields to text",
         [](const CommandContext& ctx) {
             TestMetadataReport(ctx.inputPath, ctx.outputDir);
+            return 0;
+        }
+    });
+
+    registry.Register({
+        "dcmtk:bmp",
+        "DCMTK",
+        "Export an 8-bit BMP preview frame",
+        [](const CommandContext& ctx) {
+            TestBMPPreview(ctx.inputPath, ctx.outputDir);
             return 0;
         }
     });

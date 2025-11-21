@@ -18,6 +18,10 @@
 #include "itkLinearInterpolateImageFunction.h"
 #include "itkMedianImageFilter.h"
 #include "itkNrrdImageIO.h"
+#include "itkNiftiImageIO.h"
+#include "itkMaximumProjectionImageFilter.h"
+#include "itkOtsuThresholdImageFilter.h"
+#include "itkCurvatureAnisotropicDiffusionImageFilter.h"
 #include "itkPNGImageIO.h"
 #include "itkResampleImageFilter.h"
 #include "itkRescaleIntensityImageFilter.h"
@@ -26,6 +30,8 @@ namespace {
 std::string JoinPath(const std::string& base, const std::string& filename) {
     return (std::filesystem::path(base) / filename).string();
 }
+
+using ImageIOType = itk::GDCMImageIO;
 }
 
 void ITKTests::TestCannyEdgeDetection(const std::string& filename, const std::string& outputDir) {
@@ -315,6 +321,7 @@ void ITKTests::TestSliceExtraction(const std::string& filename, const std::strin
     WriterType::Pointer writer = WriterType::New();
     writer->SetFileName(JoinPath(outputDir, "itk_slice.png"));
     writer->SetInput(rescale->GetOutput());
+    writer->SetImageIO(itk::PNGImageIO::New());
 
     try {
         writer->Update();
@@ -408,6 +415,183 @@ void ITKTests::TestNRRDExport(const std::string& filename, const std::string& ou
     }
 }
 
+void ITKTests::TestOtsuSegmentation(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [ITK] Otsu Segmentation ---" << std::endl;
+
+    using PixelType = signed short;
+    const unsigned int Dimension = 3;
+    using ImageType = itk::Image<PixelType, Dimension>;
+    using ReaderType = itk::ImageFileReader<ImageType>;
+    using OtsuType = itk::OtsuThresholdImageFilter<ImageType, ImageType>;
+    using WriterType = itk::ImageFileWriter<ImageType>;
+
+    ReaderType::Pointer reader = ReaderType::New();
+    reader->SetFileName(filename);
+    ImageIOType::Pointer gdcmIO = ImageIOType::New();
+    reader->SetImageIO(gdcmIO);
+
+    try {
+        reader->Update();
+    } catch (itk::ExceptionObject& err) {
+        std::cerr << "ITK Exception: " << err << std::endl;
+        return;
+    }
+
+    OtsuType::Pointer otsu = OtsuType::New();
+    otsu->SetInput(reader->GetOutput());
+    otsu->SetInsideValue(1000);
+    otsu->SetOutsideValue(0);
+
+    WriterType::Pointer writer = WriterType::New();
+    writer->SetFileName(JoinPath(outputDir, "itk_otsu.dcm"));
+    writer->SetInput(otsu->GetOutput());
+    writer->SetImageIO(gdcmIO);
+
+    try {
+        writer->Update();
+        std::cout << "Saved to '" << writer->GetFileName() << "'" << std::endl;
+    } catch (itk::ExceptionObject& err) {
+        std::cerr << "ITK Write Exception: " << err << std::endl;
+    }
+}
+
+void ITKTests::TestAnisotropicDenoise(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [ITK] Curvature Anisotropic Diffusion ---" << std::endl;
+
+    using InputPixelType = signed short;
+    using FloatPixelType = float;
+    const unsigned int Dimension = 3;
+    using InputImageType = itk::Image<InputPixelType, Dimension>;
+    using FloatImageType = itk::Image<FloatPixelType, Dimension>;
+    using ReaderType = itk::ImageFileReader<InputImageType>;
+    using CastToFloatType = itk::CastImageFilter<InputImageType, FloatImageType>;
+    using DenoiseType = itk::CurvatureAnisotropicDiffusionImageFilter<FloatImageType, FloatImageType>;
+    using CastToShortType = itk::CastImageFilter<FloatImageType, InputImageType>;
+    using WriterType = itk::ImageFileWriter<InputImageType>;
+
+    ReaderType::Pointer reader = ReaderType::New();
+    reader->SetFileName(filename);
+    ImageIOType::Pointer gdcmIO = ImageIOType::New();
+    reader->SetImageIO(gdcmIO);
+
+    try {
+        reader->Update();
+    } catch (itk::ExceptionObject& err) {
+        std::cerr << "ITK Exception: " << err << std::endl;
+        return;
+    }
+
+    CastToFloatType::Pointer castToFloat = CastToFloatType::New();
+    castToFloat->SetInput(reader->GetOutput());
+
+    DenoiseType::Pointer filter = DenoiseType::New();
+    filter->SetInput(castToFloat->GetOutput());
+    filter->SetTimeStep(0.0625);
+    filter->SetConductanceParameter(2.0);
+    filter->SetNumberOfIterations(5);
+
+    CastToShortType::Pointer castBack = CastToShortType::New();
+    castBack->SetInput(filter->GetOutput());
+
+    WriterType::Pointer writer = WriterType::New();
+    writer->SetFileName(JoinPath(outputDir, "itk_aniso.dcm"));
+    writer->SetInput(castBack->GetOutput());
+    writer->SetImageIO(gdcmIO);
+
+    try {
+        writer->Update();
+        std::cout << "Saved to '" << writer->GetFileName() << "'" << std::endl;
+    } catch (itk::ExceptionObject& err) {
+        std::cerr << "ITK Write Exception: " << err << std::endl;
+    }
+}
+
+void ITKTests::TestMaximumIntensityProjection(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [ITK] Maximum Intensity Projection ---" << std::endl;
+
+    using PixelType = signed short;
+    using InputImageType = itk::Image<PixelType, 3>;
+    using OutputImageType = itk::Image<unsigned char, 2>;
+    using ReaderType = itk::ImageFileReader<InputImageType>;
+    using ProjectType = itk::MaximumProjectionImageFilter<InputImageType, OutputImageType>;
+    using RescaleType = itk::RescaleIntensityImageFilter<OutputImageType, OutputImageType>;
+    using WriterType = itk::ImageFileWriter<OutputImageType>;
+
+    ReaderType::Pointer reader = ReaderType::New();
+    reader->SetFileName(filename);
+    ImageIOType::Pointer gdcmIO = ImageIOType::New();
+    reader->SetImageIO(gdcmIO);
+
+    try {
+        reader->Update();
+    } catch (itk::ExceptionObject& err) {
+        std::cerr << "ITK Exception: " << err << std::endl;
+        return;
+    }
+
+    ProjectType::Pointer mip = ProjectType::New();
+    mip->SetInput(reader->GetOutput());
+    mip->SetProjectionDimension(2);
+
+    RescaleType::Pointer rescale = RescaleType::New();
+    rescale->SetInput(mip->GetOutput());
+    rescale->SetOutputMinimum(0);
+    rescale->SetOutputMaximum(255);
+
+    WriterType::Pointer writer = WriterType::New();
+    writer->SetFileName(JoinPath(outputDir, "itk_mip.png"));
+    writer->SetInput(rescale->GetOutput());
+    writer->SetImageIO(itk::PNGImageIO::New());
+
+    try {
+        writer->Update();
+        std::cout << "Saved axial MIP PNG to '" << writer->GetFileName() << "'" << std::endl;
+    } catch (itk::ExceptionObject& err) {
+        std::cerr << "ITK Write Exception: " << err << std::endl;
+    }
+}
+
+void ITKTests::TestNiftiExport(const std::string& filename, const std::string& outputDir) {
+    std::cout << "--- [ITK] NIfTI Export ---" << std::endl;
+
+    using PixelType = signed short;
+    const unsigned int Dimension = 3;
+    using ImageType = itk::Image<PixelType, Dimension>;
+    using ReaderType = itk::ImageFileReader<ImageType>;
+    using RescaleType = itk::RescaleIntensityImageFilter<ImageType, ImageType>;
+    using WriterType = itk::ImageFileWriter<ImageType>;
+
+    ReaderType::Pointer reader = ReaderType::New();
+    reader->SetFileName(filename);
+    ImageIOType::Pointer gdcmIO = ImageIOType::New();
+    reader->SetImageIO(gdcmIO);
+
+    try {
+        reader->Update();
+    } catch (itk::ExceptionObject& err) {
+        std::cerr << "ITK Exception: " << err << std::endl;
+        return;
+    }
+
+    RescaleType::Pointer rescale = RescaleType::New();
+    rescale->SetInput(reader->GetOutput());
+    rescale->SetOutputMinimum(0);
+    rescale->SetOutputMaximum(4095);
+
+    WriterType::Pointer writer = WriterType::New();
+    writer->SetFileName(JoinPath(outputDir, "itk_volume.nii.gz"));
+    writer->SetInput(rescale->GetOutput());
+    writer->UseCompressionOn();
+    writer->SetImageIO(itk::NiftiImageIO::New());
+
+    try {
+        writer->Update();
+        std::cout << "Saved to '" << writer->GetFileName() << "'" << std::endl;
+    } catch (itk::ExceptionObject& err) {
+        std::cerr << "ITK Write Exception: " << err << std::endl;
+    }
+}
+
 #else
 namespace ITKTests {
 void TestCannyEdgeDetection(const std::string&, const std::string&) { std::cout << "ITK not enabled." << std::endl; }
@@ -418,5 +602,9 @@ void TestAdaptiveHistogram(const std::string&, const std::string&) {}
 void TestSliceExtraction(const std::string&, const std::string&) {}
 void TestMedianFilter(const std::string&, const std::string&) {}
 void TestNRRDExport(const std::string&, const std::string&) {}
+void TestOtsuSegmentation(const std::string&, const std::string&) {}
+void TestAnisotropicDenoise(const std::string&, const std::string&) {}
+void TestMaximumIntensityProjection(const std::string&, const std::string&) {}
+void TestNiftiExport(const std::string&, const std::string&) {}
 } // namespace ITKTests
 #endif
