@@ -59,7 +59,10 @@ target_include_directories(dicom_cli PUBLIC ${DICOMTOOLS_INCLUDE_ROOT})
 target_compile_definitions(dicom_cli PUBLIC INPUT_DIR="${DICOMTOOLS_INPUT_DIR}")
 
 # --- Module libraries (compile even when deps missing; runtime stubs handle absence) ---
-add_library(module_gdcm STATIC src/modules/GDCM/GDCMTests.cpp)
+add_library(module_gdcm STATIC
+    src/modules/GDCM/GDCMTests.cpp
+    src/modules/GDCM/GDCMFeatureActions.cpp
+)
 target_include_directories(module_gdcm PUBLIC ${DICOMTOOLS_INCLUDE_ROOT})
 if(GDCM_FOUND)
     target_compile_definitions(module_gdcm PRIVATE USE_GDCM)
@@ -71,7 +74,10 @@ if(GDCM_FOUND)
     target_link_libraries(module_gdcm PUBLIC ${GDCM_LIBRARIES})
 endif()
 
-add_library(module_dcmtk STATIC src/modules/DCMTK/DCMTKTests.cpp)
+add_library(module_dcmtk STATIC
+    src/modules/DCMTK/DCMTKTests.cpp
+    src/modules/DCMTK/DCMTKFeatureActions.cpp
+)
 target_include_directories(module_dcmtk PUBLIC ${DICOMTOOLS_INCLUDE_ROOT})
 if(DCMTK_FOUND)
     target_compile_definitions(module_dcmtk PRIVATE USE_DCMTK)
@@ -82,14 +88,20 @@ if(DCMTK_FOUND)
     target_link_libraries(module_dcmtk PUBLIC ${DCMTK_LIBRARIES})
 endif()
 
-add_library(module_itk STATIC src/modules/ITK/ITKTests.cpp)
+add_library(module_itk STATIC
+    src/modules/ITK/ITKTests.cpp
+    src/modules/ITK/ITKFeatureActions.cpp
+)
 target_include_directories(module_itk PUBLIC ${DICOMTOOLS_INCLUDE_ROOT})
 if(ITK_FOUND)
     target_compile_definitions(module_itk PRIVATE USE_ITK)
     target_link_libraries(module_itk PUBLIC ${ITK_LIBRARIES})
 endif()
 
-add_library(module_vtk STATIC src/modules/VTK/VTKTests.cpp)
+add_library(module_vtk STATIC
+    src/modules/VTK/VTKTests.cpp
+    src/modules/VTK/VTKFeatureActions.cpp
+)
 target_include_directories(module_vtk PUBLIC ${DICOMTOOLS_INCLUDE_ROOT})
 if(VTK_FOUND)
     target_compile_definitions(module_vtk PRIVATE USE_VTK)
