@@ -31,3 +31,7 @@
 *.dylib binary
 *.lib binary
 *.a binary
+
+# GitHub Linguist overrides to keep stats focused on C++
+scripts/*.sh linguist-vendored linguist-detectable=false
+scripts/*.bash linguist-vendored linguist-detectable=false
