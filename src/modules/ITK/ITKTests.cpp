@@ -1,3 +1,11 @@
+//
+// ITKTests.cpp
+// DicomToolsCpp
+//
+// Registers ITK feature commands and maps them to concrete processing demonstrations.
+//
+// Thales Matheus Mendonça Santos - November 2025
+
 #include "ITKTestInterface.h"
 
 #include "ITKFeatureActions.h"
@@ -6,6 +14,7 @@
 #ifdef USE_ITK
 
 void ITKTests::RegisterCommands(CommandRegistry& registry) {
+    // Composite command that exercises every ITK demonstration in sequence
     registry.Register({
         "test-itk",
         "ITK",

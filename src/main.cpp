@@ -1,3 +1,11 @@
+//
+// main.cpp
+// DicomToolsCpp
+//
+// Entry point that wires CLI parsing, module command registration, and dispatch for all DICOM test suites.
+//
+// Thales Matheus Mendonça Santos - November 2025
+
 #include <iostream>
 #include <iomanip>
 #include <string>
@@ -19,6 +27,7 @@ struct ModuleSummary {
 };
 
 std::vector<ModuleSummary> BuildModuleSummaries() {
+    // High-level snapshot of which optional modules were compiled in
     return {
         {
             "GDCM",
@@ -60,6 +69,7 @@ std::vector<ModuleSummary> BuildModuleSummaries() {
 }
 
 void PrintModuleSummary(const std::vector<ModuleSummary>& modules) {
+    // Lightweight pretty-printer to present module availability and feature teasers
     std::cout << "Module Availability" << std::endl;
     std::cout << "-------------------" << std::endl;
     for (const auto& module : modules) {
@@ -83,10 +93,12 @@ int main(int argc, char* argv[]) {
     std::cout << "========================================" << std::endl;
 
     CommandRegistry registry;
+    // Module-specific command injection
     GDCMTests::RegisterCommands(registry);
     DCMTKTests::RegisterCommands(registry);
     ITKTests::RegisterCommands(registry);
     VTKTests::RegisterCommands(registry);
+    // Aggregate entry point that runs every available suite
     registry.Register({
         "all",
         "General",
@@ -132,6 +144,7 @@ int main(int argc, char* argv[]) {
 
     std::string inputPath = options.inputPath;
     if (inputPath.empty()) {
+        // Allow running commands without passing -i by grabbing any sample file
         inputPath = FileSystemUtils::FindFirstDicom(INPUT_DIR);
         if (inputPath.empty()) {
             std::cerr << "Error: No .dcm file provided and none found in " << INPUT_DIR << std::endl;
@@ -144,6 +157,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // Execute the selected command in the shared context
     CommandContext ctx{inputPath, options.outputDir, options.verbose};
     int result = registry.Run(options.command, ctx);
 

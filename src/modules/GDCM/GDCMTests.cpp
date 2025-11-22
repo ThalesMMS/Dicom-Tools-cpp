@@ -1,3 +1,11 @@
+//
+// GDCMTests.cpp
+// DicomToolsCpp
+//
+// Registers GDCM feature commands and connects them to their corresponding demo actions.
+//
+// Thales Matheus Mendonça Santos - November 2025
+
 #include "GDCMTestInterface.h"
 
 #include "GDCMFeatureActions.h"
@@ -6,6 +14,7 @@
 #ifdef USE_GDCM
 
 void GDCMTests::RegisterCommands(CommandRegistry& registry) {
+    // Master command executes the entire suite of GDCM feature demos
     registry.Register({
         "test-gdcm",
         "GDCM",

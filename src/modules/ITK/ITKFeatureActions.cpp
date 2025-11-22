@@ -1,3 +1,11 @@
+//
+// ITKFeatureActions.cpp
+// DicomToolsCpp
+//
+// Implements ITK-based processing demos including smoothing, segmentation, resampling, projections, and format exports.
+//
+// Thales Matheus Mendonça Santos - November 2025
+
 #include "ITKFeatureActions.h"
 
 #include <filesystem>
@@ -35,6 +43,7 @@ using ImageIOType = itk::GDCMImageIO;
 }
 
 void ITKTests::TestCannyEdgeDetection(const std::string& filename, const std::string& outputDir) {
+    // Run 3D Canny edge detection and rescale for easy viewing
     std::cout << "--- [ITK] Canny Edge Detection ---" << std::endl;
     
     using InputPixelType = float;
@@ -88,6 +97,7 @@ void ITKTests::TestCannyEdgeDetection(const std::string& filename, const std::st
 }
 
 void ITKTests::TestGaussianSmoothing(const std::string& filename, const std::string& outputDir) {
+    // Apply a modest Gaussian blur to smooth noise in the volume
     std::cout << "--- [ITK] Gaussian Smoothing ---" << std::endl;
     
     using PixelType = signed short;
@@ -129,6 +139,7 @@ void ITKTests::TestGaussianSmoothing(const std::string& filename, const std::str
 }
 
 void ITKTests::TestBinaryThresholding(const std::string& filename, const std::string& outputDir) {
+    // Segment voxels within a fixed HU range using a binary mask
     std::cout << "--- [ITK] Binary Thresholding ---" << std::endl;
     
     using PixelType = signed short;
@@ -173,6 +184,7 @@ void ITKTests::TestBinaryThresholding(const std::string& filename, const std::st
 }
 
 void ITKTests::TestResampling(const std::string& filename, const std::string& outputDir) {
+    // Resample to 1mm isotropic spacing with linear interpolation
     std::cout << "--- [ITK] Resampling ---" << std::endl;
     
     using PixelType = signed short;
@@ -238,6 +250,7 @@ void ITKTests::TestResampling(const std::string& filename, const std::string& ou
 }
 
 void ITKTests::TestAdaptiveHistogram(const std::string& filename, const std::string& outputDir) {
+    // Boost contrast with adaptive histogram equalization
     std::cout << "--- [ITK] Adaptive Histogram Equalization ---" << std::endl;
     using PixelType = signed short;
     const unsigned int Dimension = 3;
@@ -279,6 +292,7 @@ void ITKTests::TestAdaptiveHistogram(const std::string& filename, const std::str
 }
 
 void ITKTests::TestSliceExtraction(const std::string& filename, const std::string& outputDir) {
+    // Pull the middle axial slice and rescale it to an 8-bit PNG
     std::cout << "--- [ITK] Slice Extraction ---" << std::endl;
     using PixelType = signed short;
     using InputImageType = itk::Image<PixelType, 3>;
@@ -332,6 +346,7 @@ void ITKTests::TestSliceExtraction(const std::string& filename, const std::strin
 }
 
 void ITKTests::TestMedianFilter(const std::string& filename, const std::string& outputDir) {
+    // Apply a small 3x3x3 median filter to remove salt-and-pepper noise
     std::cout << "--- [ITK] Median Filter ---" << std::endl;
 
     using PixelType = signed short;
@@ -374,6 +389,7 @@ void ITKTests::TestMedianFilter(const std::string& filename, const std::string& 
 }
 
 void ITKTests::TestNRRDExport(const std::string& filename, const std::string& outputDir) {
+    // Export the volume to NRRD, rescaled to a convenient intensity range
     std::cout << "--- [ITK] NRRD Export ---" << std::endl;
 
     using PixelType = signed short;
@@ -416,6 +432,7 @@ void ITKTests::TestNRRDExport(const std::string& filename, const std::string& ou
 }
 
 void ITKTests::TestOtsuSegmentation(const std::string& filename, const std::string& outputDir) {
+    // Automatic single-threshold segmentation using Otsu's method
     std::cout << "--- [ITK] Otsu Segmentation ---" << std::endl;
 
     using PixelType = signed short;
@@ -456,6 +473,7 @@ void ITKTests::TestOtsuSegmentation(const std::string& filename, const std::stri
 }
 
 void ITKTests::TestAnisotropicDenoise(const std::string& filename, const std::string& outputDir) {
+    // Perform curvature anisotropic diffusion for edge-preserving smoothing
     std::cout << "--- [ITK] Curvature Anisotropic Diffusion ---" << std::endl;
 
     using InputPixelType = signed short;
@@ -507,6 +525,7 @@ void ITKTests::TestAnisotropicDenoise(const std::string& filename, const std::st
 }
 
 void ITKTests::TestMaximumIntensityProjection(const std::string& filename, const std::string& outputDir) {
+    // Generate a simple axial maximum intensity projection and save as PNG
     std::cout << "--- [ITK] Maximum Intensity Projection ---" << std::endl;
 
     using PixelType = signed short;
@@ -552,6 +571,7 @@ void ITKTests::TestMaximumIntensityProjection(const std::string& filename, const
 }
 
 void ITKTests::TestNiftiExport(const std::string& filename, const std::string& outputDir) {
+    // Rescale intensities and export the 3D volume to compressed NIfTI
     std::cout << "--- [ITK] NIfTI Export ---" << std::endl;
 
     using PixelType = signed short;

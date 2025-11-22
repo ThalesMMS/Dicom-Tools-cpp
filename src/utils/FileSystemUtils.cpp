@@ -1,3 +1,11 @@
+//
+// FileSystemUtils.cpp
+// DicomToolsCpp
+//
+// Implements simple filesystem utilities for locating DICOM inputs and ensuring writable output destinations.
+//
+// Thales Matheus Mendonça Santos - November 2025
+
 #include "FileSystemUtils.h"
 
 #include <filesystem>
@@ -8,6 +16,7 @@ namespace fs = std::filesystem;
 namespace FileSystemUtils {
 
 std::string FindFirstDicom(const std::string& inputDir) {
+    // Walk the directory tree and return the first .dcm file found (depth-first)
     if (fs::exists(inputDir) && fs::is_directory(inputDir)) {
         for (const auto& entry : fs::recursive_directory_iterator(inputDir)) {
             if (entry.path().extension() == ".dcm") {
@@ -19,6 +28,7 @@ std::string FindFirstDicom(const std::string& inputDir) {
 }
 
 bool EnsureOutputDir(const std::string& path) {
+    // Make sure the output folder exists; create it if needed
     std::error_code ec;
     if (fs::exists(path, ec)) {
         if (!fs::is_directory(path, ec)) {

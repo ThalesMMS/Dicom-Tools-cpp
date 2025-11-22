@@ -1,3 +1,11 @@
+#
+# run_all.py
+# DicomToolsCpp
+#
+# Runs the compiled CLI against each module’s test command and checks for expected output artifacts.
+#
+# Thales Matheus Mendonça Santos - November 2025
+
 import subprocess
 import os
 import sys
@@ -7,6 +15,7 @@ BUILD_DIR = "build"
 EXECUTABLE = os.path.join(BUILD_DIR, "DicomTools")
 INPUT_FILE = "input/dcm_series/IM-0001-0190.dcm"
 
+# Ensure we fail early if the binary has not been built
 if not os.path.exists(EXECUTABLE):
     print(f"Error: Executable not found at {EXECUTABLE}")
     sys.exit(1)
@@ -28,6 +37,7 @@ def run_test(command, description):
 
 # Check outputs
 def check_file(filename):
+    # Simple existence check; contents are validated manually when needed
     filepath = os.path.join("output", filename)
     if os.path.exists(filepath):
         print(f"  [OK] Output file generated: {filepath}")

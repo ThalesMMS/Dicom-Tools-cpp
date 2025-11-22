@@ -1,3 +1,11 @@
+//
+// CommandRegistry.cpp
+// DicomToolsCpp
+//
+// Implements command registration, lookup, grouping, and execution for the CLI command suite.
+//
+// Thales Matheus Mendonça Santos - November 2025
+
 #include "CommandRegistry.h"
 
 #include <algorithm>
@@ -5,6 +13,7 @@
 #include <map>
 
 void CommandRegistry::Register(const Command& command) {
+    // Skip empty/incomplete registrations to keep the registry clean
     if (command.name.empty() || !command.action) {
         return;
     }
@@ -23,6 +32,7 @@ bool CommandRegistry::Exists(const std::string& name) const {
 }
 
 int CommandRegistry::Run(const std::string& name, const CommandContext& context) const {
+    // Look up by index for O(1) execution while preserving insertion ordering
     auto it = index_.find(name);
     if (it == index_.end()) {
         std::cerr << "Unknown command: " << name << std::endl;
@@ -32,6 +42,7 @@ int CommandRegistry::Run(const std::string& name, const CommandContext& context)
 }
 
 void CommandRegistry::List(std::ostream& os) const {
+    // Group commands by module to make help output easier to scan
     std::map<std::string, std::vector<const Command*>> grouped;
     for (const auto& cmd : ordered_) {
         grouped[cmd.module].push_back(&cmd);

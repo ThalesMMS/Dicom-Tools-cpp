@@ -1,8 +1,17 @@
+//
+// ITKFeatureActions.h
+// DicomToolsCpp
+//
+// Declares ITK feature demos for filtering, segmentation, resampling, and volume export.
+//
+// Thales Matheus Mendonça Santos - November 2025
+
 #pragma once
 
 #include <string>
 
 namespace ITKTests {
+    // Individual ITK processing demos exposed as CLI commands
     void TestCannyEdgeDetection(const std::string& filename, const std::string& outputDir);
     void TestGaussianSmoothing(const std::string& filename, const std::string& outputDir);
     void TestBinaryThresholding(const std::string& filename, const std::string& outputDir);

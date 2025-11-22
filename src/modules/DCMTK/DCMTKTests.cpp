@@ -1,3 +1,11 @@
+//
+// DCMTKTests.cpp
+// DicomToolsCpp
+//
+// Registers DCMTK feature commands and wires them to concrete test actions for the CLI.
+//
+// Thales Matheus Mendonça Santos - November 2025
+
 #include "DCMTKTestInterface.h"
 
 #include "DCMTKFeatureActions.h"
@@ -6,6 +14,7 @@
 #ifdef USE_DCMTK
 
 void DCMTKTests::RegisterCommands(CommandRegistry& registry) {
+    // Composite command to run every DCMTK demo action in one go
     registry.Register({
         "test-dcmtk",
         "DCMTK",

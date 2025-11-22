@@ -1,3 +1,11 @@
+//
+// VTKFeatureActions.cpp
+// DicomToolsCpp
+//
+// Implements VTK-driven demos for exporting volumes, resampling, marching cubes, projections, metadata, and statistics.
+//
+// Thales Matheus Mendonça Santos - November 2025
+
 #include "VTKFeatureActions.h"
 
 #include <algorithm>
@@ -26,10 +34,12 @@
 namespace fs = std::filesystem;
 
 namespace {
+// Keep path concatenation tidy across the file outputs
 std::string JoinPath(const std::string& base, const std::string& filename) {
     return (fs::path(base) / filename).string();
 }
 
+// If a single file path is provided, VTK needs the enclosing directory to read the series
 std::string ResolveSeriesDirectory(const std::string& path) {
     if (fs::is_directory(path)) {
         return path;
@@ -39,6 +49,7 @@ std::string ResolveSeriesDirectory(const std::string& path) {
 }
 
 void VTKTests::TestImageExport(const std::string& filename, const std::string& outputDir) {
+    // Read a series and serialize it to VTK's VTI format
     std::cout << "--- [VTK] Image Export ---" << std::endl;
 
     vtkNew<vtkDICOMImageReader> reader;
@@ -56,6 +67,7 @@ void VTKTests::TestImageExport(const std::string& filename, const std::string& o
 }
 
 void VTKTests::TestNiftiExport(const std::string& filename, const std::string& outputDir) {
+    // Export the loaded series directly to compressed NIfTI
     std::cout << "--- [VTK] NIfTI Export ---" << std::endl;
 
     vtkNew<vtkDICOMImageReader> reader;
@@ -71,6 +83,7 @@ void VTKTests::TestNiftiExport(const std::string& filename, const std::string& o
 }
 
 void VTKTests::TestIsosurfaceExtraction(const std::string& filename, const std::string& outputDir) {
+    // Run marching cubes on the CT volume to produce a quick STL mesh
     std::cout << "--- [VTK] Isosurface Extraction (Marching Cubes) ---" << std::endl;
     
     vtkNew<vtkDICOMImageReader> reader;
@@ -92,6 +105,7 @@ void VTKTests::TestIsosurfaceExtraction(const std::string& filename, const std::
 }
 
 void VTKTests::TestMPR(const std::string& filename, const std::string& outputDir) {
+    // Slice through the volume center and export a single MPR PNG
     std::cout << "--- [VTK] MPR (Single Slice Export) ---" << std::endl;
     
     vtkNew<vtkDICOMImageReader> reader;
@@ -121,6 +135,7 @@ void VTKTests::TestMPR(const std::string& filename, const std::string& outputDir
 }
 
 void VTKTests::TestThresholdMask(const std::string& filename, const std::string& outputDir) {
+    // Create a binary mask with a simple HU window and save as VTI
     std::cout << "--- [VTK] Threshold Mask ---" << std::endl;
 
     vtkNew<vtkDICOMImageReader> reader;
@@ -143,6 +158,7 @@ void VTKTests::TestThresholdMask(const std::string& filename, const std::string&
 }
 
 void VTKTests::TestVolumeStatistics(const std::string& filename, const std::string& outputDir) {
+    // Compute histogram-driven stats for a CT volume and persist to text
     std::cout << "--- [VTK] Volume Statistics ---" << std::endl;
 
     vtkNew<vtkDICOMImageReader> reader;
@@ -186,6 +202,7 @@ void VTKTests::TestVolumeStatistics(const std::string& filename, const std::stri
 }
 
 void VTKTests::TestMetadataExport(const std::string& filename, const std::string& outputDir) {
+    // Grab common DICOM metadata fields from the VTK reader and log them
     std::cout << "--- [VTK] Metadata Export ---" << std::endl;
 
     vtkNew<vtkDICOMImageReader> reader;
@@ -225,6 +242,7 @@ void VTKTests::TestMetadataExport(const std::string& filename, const std::string
 }
 
 void VTKTests::TestIsotropicResample(const std::string& filename, const std::string& outputDir) {
+    // Resample the volume to 1mm spacing and export as VTI
     std::cout << "--- [VTK] Isotropic Resample ---" << std::endl;
 
     vtkNew<vtkDICOMImageReader> reader;
@@ -253,6 +271,7 @@ void VTKTests::TestIsotropicResample(const std::string& filename, const std::str
 }
 
 void VTKTests::TestMaximumIntensityProjection(const std::string& filename, const std::string& outputDir) {
+    // Generate an axial MIP with a small slab thickness and export to PNG
     std::cout << "--- [VTK] Maximum Intensity Projection ---" << std::endl;
 
     vtkNew<vtkDICOMImageReader> reader;

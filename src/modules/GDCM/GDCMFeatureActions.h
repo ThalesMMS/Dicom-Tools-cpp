@@ -1,8 +1,17 @@
+//
+// GDCMFeatureActions.h
+// DicomToolsCpp
+//
+// Declares GDCM-based demonstrations for anonymization, transcoding, previews, and metadata scanning.
+//
+// Thales Matheus Mendonça Santos - November 2025
+
 #pragma once
 
 #include <string>
 
 namespace GDCMTests {
+    // Self-contained demonstrations of core GDCM capabilities
     void TestTagInspection(const std::string& filename, const std::string& outputDir);
     void TestAnonymization(const std::string& filename, const std::string& outputDir);
     void TestDecompression(const std::string& filename, const std::string& outputDir);

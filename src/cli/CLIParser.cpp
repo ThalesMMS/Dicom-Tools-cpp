@@ -1,3 +1,11 @@
+//
+// CLIParser.cpp
+// DicomToolsCpp
+//
+// Implements a lightweight argument parser and usage printer for the command suite without extra dependencies.
+//
+// Thales Matheus Mendonça Santos - November 2025
+
 #include "CLIParser.h"
 
 #include <iostream>
@@ -5,6 +13,7 @@
 #include <vector>
 
 namespace {
+// Add a tiny helper so we do not repeat short/long comparisons everywhere
 bool IsFlag(const std::string& arg, const std::string& shortFlag, const std::string& longFlag) {
     return arg == shortFlag || arg == longFlag;
 }
@@ -13,6 +22,7 @@ bool IsFlag(const std::string& arg, const std::string& shortFlag, const std::str
 CLIOptions ParseCLIArgs(int argc, char* argv[], const CommandRegistry& registry) {
     CLIOptions opts;
 
+    // Classic hand-rolled parser keeps dependencies minimal and readable
     for (int i = 1; i < argc; ++i) {
         std::string arg(argv[i]);
         if (IsFlag(arg, "-h", "--help")) {
@@ -46,6 +56,7 @@ CLIOptions ParseCLIArgs(int argc, char* argv[], const CommandRegistry& registry)
         opts.help = true;
     }
 
+    // When showing help with no command, suggest running "all" if available
     if (opts.help && opts.command.empty() && !opts.list && !opts.modules) {
         // Favor the "all" command when nothing was provided and we showed help
         if (registry.Exists("all")) {
@@ -67,5 +78,6 @@ void PrintUsage(std::ostream& os, const CommandRegistry& registry) {
     os << "  -v, --verbose        Print extra details for commands" << std::endl;
     os << std::endl;
     os << "Commands:" << std::endl;
+    // Leverage registry for up-to-date list so usage always matches capabilities
     registry.List(os);
 }

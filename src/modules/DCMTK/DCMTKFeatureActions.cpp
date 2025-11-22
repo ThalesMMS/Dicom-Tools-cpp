@@ -1,3 +1,11 @@
+//
+// DCMTKFeatureActions.cpp
+// DicomToolsCpp
+//
+// Provides DCMTK-backed examples for tag editing, pixel export, transcoding, metadata reporting, and DICOMDIR creation.
+//
+// Thales Matheus Mendonça Santos - November 2025
+
 #include "DCMTKFeatureActions.h"
 
 #include <filesystem>
@@ -20,12 +28,14 @@
 namespace fs = std::filesystem;
 
 namespace {
+// Tiny helper to keep path concatenation readable in stream-heavy code
 std::string JoinPath(const std::string& base, const std::string& filename) {
     return (fs::path(base) / filename).string();
 }
 }
 
 void DCMTKTests::TestTagModification(const std::string& filename, const std::string& outputDir) {
+    // Demonstrates basic tag read/write and saving a sanitized copy
     std::cout << "--- [DCMTK] Tag Modification ---" << std::endl;
     DcmFileFormat fileformat;
     OFCondition status = fileformat.loadFile(filename.c_str());
@@ -51,6 +61,7 @@ void DCMTKTests::TestTagModification(const std::string& filename, const std::str
 }
 
 void DCMTKTests::TestPixelDataExtraction(const std::string& filename, const std::string& outputDir) {
+    // Extracts pixel data and writes a PPM/PGM preview using DCMTK image tools
     std::cout << "--- [DCMTK] Pixel Data Extraction ---" << std::endl;
     
     DicomImage* image = new DicomImage(filename.c_str());
@@ -78,6 +89,7 @@ void DCMTKTests::TestPixelDataExtraction(const std::string& filename, const std:
 }
 
 void DCMTKTests::TestDICOMDIRGeneration(const std::string& directory, const std::string& outputDir) {
+    // Copies an input series to a fake media root and builds a DICOMDIR index
     std::cout << "--- [DCMTK] DICOMDIR Generation ---" << std::endl;
     fs::path sourceRoot = fs::is_directory(directory) ? fs::path(directory) : fs::path(directory).parent_path();
     fs::path mediaRoot = fs::path(outputDir) / "dicomdir_media";
@@ -98,6 +110,7 @@ void DCMTKTests::TestDICOMDIRGeneration(const std::string& directory, const std:
         return;
     }
 
+    // Mirror the source tree into a temporary media folder to keep relative paths intact
     std::error_code ec;
     fs::create_directories(mediaRoot, ec);
     if (ec) {
@@ -141,6 +154,7 @@ void DCMTKTests::TestDICOMDIRGeneration(const std::string& directory, const std:
 
     size_t added = 0;
     for (const auto& dicom : dicomFiles) {
+        // Use relative paths inside the media root to mimic disc layout
         ec.clear();
         fs::path relative = fs::relative(dicom, sourceRoot, ec);
         if (ec) {
@@ -165,6 +179,7 @@ void DCMTKTests::TestDICOMDIRGeneration(const std::string& directory, const std:
 }
 
 void DCMTKTests::TestLosslessJPEGReencode(const std::string& filename, const std::string& outputDir) {
+    // Round-trip the dataset through JPEG Lossless to validate codec configuration
     std::cout << "--- [DCMTK] JPEG Lossless Re-encode ---" << std::endl;
     DJDecoderRegistration::registerCodecs();
     DJEncoderRegistration::registerCodecs();
@@ -191,6 +206,7 @@ void DCMTKTests::TestLosslessJPEGReencode(const std::string& filename, const std
 }
 
 void DCMTKTests::TestExplicitVRRewrite(const std::string& filename, const std::string& outputDir) {
+    // Force a transcode to Explicit VR Little Endian to ensure basic transfer syntax handling
     std::cout << "--- [DCMTK] Explicit VR Little Endian ---" << std::endl;
     DcmFileFormat fileformat;
     OFCondition status = fileformat.loadFile(filename.c_str());
@@ -209,6 +225,7 @@ void DCMTKTests::TestExplicitVRRewrite(const std::string& filename, const std::s
 }
 
 void DCMTKTests::TestMetadataReport(const std::string& filename, const std::string& outputDir) {
+    // Export common identifying fields and transfer syntax for quick inspection
     std::cout << "--- [DCMTK] Metadata Report ---" << std::endl;
     DcmFileFormat fileformat;
     OFCondition status = fileformat.loadFile(filename.c_str());
@@ -260,6 +277,7 @@ void DCMTKTests::TestMetadataReport(const std::string& filename, const std::stri
 }
 
 void DCMTKTests::TestRLEReencode(const std::string& filename, const std::string& outputDir) {
+    // Attempt a lossless RLE transcode to exercise encapsulated pixel data handling
     std::cout << "--- [DCMTK] RLE Lossless Transcode ---" << std::endl;
     DcmRLEDecoderRegistration::registerCodecs();
     DcmRLEEncoderRegistration::registerCodecs();
@@ -292,6 +310,7 @@ void DCMTKTests::TestRLEReencode(const std::string& filename, const std::string&
 }
 
 void DCMTKTests::TestJPEGBaseline(const std::string& filename, const std::string& outputDir) {
+    // Save a JPEG Baseline (lossy) copy to check encoder/decoder availability
     std::cout << "--- [DCMTK] JPEG Baseline (Process 1) ---" << std::endl;
     DJDecoderRegistration::registerCodecs();
     DJEncoderRegistration::registerCodecs();
@@ -318,6 +337,7 @@ void DCMTKTests::TestJPEGBaseline(const std::string& filename, const std::string
 }
 
 void DCMTKTests::TestBMPPreview(const std::string& filename, const std::string& outputDir) {
+    // Produce an 8-bit BMP preview with simple windowing for monochrome images
     std::cout << "--- [DCMTK] BMP Preview ---" << std::endl;
 
     DicomImage image(filename.c_str());
@@ -339,6 +359,7 @@ void DCMTKTests::TestBMPPreview(const std::string& filename, const std::string& 
 }
 
 void DCMTKTests::TestRawDump(const std::string& filename, const std::string& outputDir) {
+    // Dump raw pixel buffer bytes for quick regression comparisons
     std::cout << "--- [DCMTK] Raw Pixel Dump ---" << std::endl;
     DicomImage image(filename.c_str());
     if (image.getStatus() != EIS_Normal) {

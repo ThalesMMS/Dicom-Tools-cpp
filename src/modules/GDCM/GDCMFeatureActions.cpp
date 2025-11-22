@@ -1,3 +1,11 @@
+//
+// GDCMFeatureActions.cpp
+// DicomToolsCpp
+//
+// Implements GDCM-driven feature demos like anonymization, UID rewrites, codec transcodes, previews, and directory scans.
+//
+// Thales Matheus Mendonça Santos - November 2025
+
 #include "GDCMFeatureActions.h"
 
 #include <algorithm>
@@ -27,11 +35,13 @@
 #include "gdcmPrinter.h"
 
 namespace {
+// Tiny helper to keep file paths readable
 std::string JoinPath(const std::string& base, const std::string& name) {
     return (std::filesystem::path(base) / name).string();
 }
 
 struct PixelStats {
+    // Minimal statistics used for QA when exporting numeric reports
     double min{0.0};
     double max{0.0};
     double mean{0.0};
@@ -40,6 +50,7 @@ struct PixelStats {
 
 template <typename T>
 PixelStats CalculateStats(const std::vector<char>& buffer) {
+    // Interpret the buffer as type T and compute min/max/mean
     PixelStats stats;
     const auto* data = reinterpret_cast<const T*>(buffer.data());
     const std::size_t count = buffer.size() / sizeof(T);
@@ -66,6 +77,7 @@ PixelStats CalculateStats(const std::vector<char>& buffer) {
 
 template <typename T>
 bool WritePGMPreview(const gdcm::Image& image, const std::vector<char>& buffer, const std::string& outPath) {
+    // Create a simple 8-bit preview from the first channel of the volume
     const unsigned int width = image.GetDimension(0);
     const unsigned int height = image.GetDimension(1);
     const unsigned int samplesPerPixel = image.GetPixelFormat().GetSamplesPerPixel();
@@ -109,6 +121,7 @@ bool WritePGMPreview(const gdcm::Image& image, const std::vector<char>& buffer, 
 
 void GDCMTests::TestTagInspection(const std::string& filename, const std::string& outputDir) {
     (void)outputDir;
+    // Minimal read + print of a couple of common identifiers
     std::cout << "--- [GDCM] Tag Inspection ---" << std::endl;
     gdcm::Reader reader;
     reader.SetFileName(filename.c_str());
@@ -135,6 +148,7 @@ void GDCMTests::TestTagInspection(const std::string& filename, const std::string
 }
 
 void GDCMTests::TestAnonymization(const std::string& filename, const std::string& outputDir) {
+    // Blanks PHI tags and writes a scrubbed copy
     std::cout << "--- [GDCM] Anonymization ---" << std::endl;
     
     gdcm::Reader reader;
@@ -164,6 +178,7 @@ void GDCMTests::TestAnonymization(const std::string& filename, const std::string
 }
 
 void GDCMTests::TestDecompression(const std::string& filename, const std::string& outputDir) {
+    // Transcodes to an uncompressed transfer syntax to validate decompression
     std::cout << "--- [GDCM] Decompression (Transcoding to Raw) ---" << std::endl;
     
     gdcm::ImageChangeTransferSyntax change;
@@ -196,6 +211,7 @@ void GDCMTests::TestDecompression(const std::string& filename, const std::string
 }
 
 void GDCMTests::TestUIDRewrite(const std::string& filename, const std::string& outputDir) {
+    // Generates fresh UIDs for study/series/instance to mimic reidentification
     std::cout << "--- [GDCM] UID Regeneration ---" << std::endl;
     gdcm::Reader reader;
     reader.SetFileName(filename.c_str());
@@ -231,6 +247,7 @@ void GDCMTests::TestUIDRewrite(const std::string& filename, const std::string& o
 }
 
 void GDCMTests::TestDatasetDump(const std::string& filename, const std::string& outputDir) {
+    // Writes a verbose text dump for QA or debugging of unusual datasets
     std::cout << "--- [GDCM] Dataset Dump ---" << std::endl;
     gdcm::Reader reader;
     reader.SetFileName(filename.c_str());
@@ -253,6 +270,7 @@ void GDCMTests::TestDatasetDump(const std::string& filename, const std::string& 
 }
 
 void GDCMTests::TestJPEG2000Transcode(const std::string& filename, const std::string& outputDir) {
+    // Lossless JPEG2000 round-trip to exercise J2K codec support
     std::cout << "--- [GDCM] JPEG2000 Lossless Transcode ---" << std::endl;
 
     gdcm::ImageReader reader;
@@ -285,6 +303,7 @@ void GDCMTests::TestJPEG2000Transcode(const std::string& filename, const std::st
 }
 
 void GDCMTests::TestJPEGLSTranscode(const std::string& filename, const std::string& outputDir) {
+    // Lossless JPEG-LS round-trip to validate codec availability
     std::cout << "--- [GDCM] JPEG-LS Lossless Transcode ---" << std::endl;
 
     gdcm::ImageReader reader;
@@ -317,6 +336,7 @@ void GDCMTests::TestJPEGLSTranscode(const std::string& filename, const std::stri
 }
 
 void GDCMTests::TestRLETranscode(const std::string& filename, const std::string& outputDir) {
+    // Convert to RLE Lossless to confirm encapsulated encoding works
     std::cout << "--- [GDCM] RLE Lossless Transcode ---" << std::endl;
 
     gdcm::ImageReader reader;
@@ -349,6 +369,7 @@ void GDCMTests::TestRLETranscode(const std::string& filename, const std::string&
 }
 
 void GDCMTests::TestPixelStatistics(const std::string& filename, const std::string& outputDir) {
+    // Calculates min/max/mean of the pixel buffer for quick QC
     std::cout << "--- [GDCM] Pixel Statistics ---" << std::endl;
 
     gdcm::ImageReader reader;
@@ -413,6 +434,7 @@ void GDCMTests::TestPixelStatistics(const std::string& filename, const std::stri
 }
 
 void GDCMTests::TestDirectoryScan(const std::string& path, const std::string& outputDir) {
+    // Recursively index DICOM files and emit a CSV catalog of series
     std::cout << "--- [GDCM] Series Scan ---" << std::endl;
 
     std::filesystem::path inputPath(path);
@@ -488,6 +510,7 @@ void GDCMTests::TestDirectoryScan(const std::string& path, const std::string& ou
 }
 
 void GDCMTests::TestPreviewExport(const std::string& filename, const std::string& outputDir) {
+    // Convert the first slice to an 8-bit PGM preview for quick visualization
     std::cout << "--- [GDCM] Preview Export (PGM) ---" << std::endl;
 
     gdcm::ImageReader reader;

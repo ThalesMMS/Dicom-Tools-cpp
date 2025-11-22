@@ -1,4 +1,12 @@
 #!/bin/bash
+#
+# build_deps.sh
+# DicomToolsCpp
+#
+# Bootstraps external dependencies (GDCM, DCMTK, ITK, VTK) by cloning and building them into a local prefix for the project.
+#
+# Thales Matheus Mendonça Santos - November 2025
+
 set -e
 
 # Configuration

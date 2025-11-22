@@ -1,3 +1,11 @@
+//
+// VTKTests.cpp
+// DicomToolsCpp
+//
+// Registers VTK feature commands and routes them to the underlying demo implementations.
+//
+// Thales Matheus Mendonça Santos - November 2025
+
 #include "VTKTestInterface.h"
 
 #include "VTKFeatureActions.h"
@@ -6,6 +14,7 @@
 #ifdef USE_VTK
 
 void VTKTests::RegisterCommands(CommandRegistry& registry) {
+    // Umbrella command that runs every VTK demo sequentially
     registry.Register({
         "test-vtk",
         "VTK",
